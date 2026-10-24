@@ -1,0 +1,7 @@
+/.allstack/
+/.chronis/
+/.prime/
+/.env
+/.env.*
+/target/
+.DS_Store
