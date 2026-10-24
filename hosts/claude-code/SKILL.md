@@ -17,6 +17,8 @@ Use the original repository as the CLI's `-C` target. Edit only the active detac
 
 `plan <run> --epoch <epoch>` invokes real `claude --print` with planning permissions. `build <run> --epoch <epoch>` invokes it with `acceptEdits` and the adapter's explicit tool allowlist. Host authentication and ordinary permission rules remain active. A denied operation must remain visible; never add bypass flags.
 
+Build shell access covers `git diff`, `git status`, explicit `git add --`, their `rtk git` forms, and `shasum -a 256`. Run these from the active working directory. `git -C`, compound commands, compilation, and other shell programs require the coordinator's separate execution path.
+
 Follow the frozen request and indexed plan. Explicitly stage each intended new file with `git add -- <path>` before checkpoint capture. Do not commit, push, create branches, alter run state, or modify the verification policy from a managed build. The coordinator owns final verification and publication.
 
 ## Transfer or recover

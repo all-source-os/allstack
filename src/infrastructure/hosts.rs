@@ -11,6 +11,7 @@ pub fn invoke(
     prompt: &str,
     planning: bool,
 ) -> Result<String> {
+    let claude_build_tools = "Read,Glob,Grep,Edit,Write,Bash(git diff *),Bash(git status *),Bash(git add -- *),Bash(rtk git diff *),Bash(rtk git status *),Bash(rtk git add -- *),Bash(shasum -a 256 *)";
     let prompt = format!(
         "Managed Allstack run {}. Host {}, epoch {}, revision {}. Chronis task {} already claimed and read back by coordinator for this host. Active checkpoint {}. This detached worktree is intentional; original repository branch is {}. Do not change task ownership or run state yourself. Recover source context from the indexed plan; no prior conversation is assumed.\n\n{}",
         run.id,
@@ -22,6 +23,13 @@ pub fn invoke(
         run.branch,
         prompt
     );
+    let prompt = if run.host == Host::ClaudeCode && !planning {
+        format!(
+            "{prompt}\n\nShell capability scope: use git diff, git status, or git add -- from the current working directory. Matching rtk git forms and shasum -a 256 are allowed. Do not use git -C, compound shell commands, or other shell programs. Use Read, Glob, Grep, Edit, and Write for source work. The coordinator runs compilation, tests, and publication."
+        )
+    } else {
+        prompt
+    };
     let argv: Vec<String> = match run.host {
         Host::Codex => vec![
             "codex",
@@ -57,7 +65,7 @@ pub fn invoke(
             if planning {
                 "Read,Glob,Grep"
             } else {
-                "Read,Glob,Grep,Edit,Write,Bash(git diff *),Bash(git status *),Bash(git add -- *)"
+                claude_build_tools
             },
         ]
         .into_iter()

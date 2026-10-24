@@ -46,12 +46,26 @@ impl Platform for Fake {
         self.calls.borrow_mut().push(kind.into());
         Ok(())
     }
-    fn initialize(&self, _: &Start) -> Result<Run> {
-        Ok(common::run())
+    fn initialize(&self, input: &Start) -> Result<Run> {
+        let mut run = common::run();
+        if input.workflow == "bugfix" {
+            run.selection = Some(allstack::domain::WorkflowSelection {
+                id: "bugfix".into(),
+                path: "workflows/bugfix.toml".into(),
+            });
+            run.methods = [
+                ("plan".into(), "diagnose".into()),
+                ("build".into(), "repair".into()),
+            ]
+            .into();
+        }
+        Ok(run)
     }
     fn object(&self, key: &str) -> Result<Vec<u8>> {
         Ok(if key == "policy" {
             b"command_seconds=10\n[[gates]]\nname='real tests'\nargv=['cargo','test','--lib']\ntest=true\nsuccess_marker='1 passed'\n".to_vec()
+        } else if key == "diagnose" || key == "repair" {
+            key.as_bytes().to_vec()
         } else {
             b"request and plan".to_vec()
         })
@@ -89,14 +103,20 @@ impl Platform for Fake {
     fn recall(&self, _: &str) -> Value {
         json!({"authority":"context-only"})
     }
-    async fn remember(&self, _: &Run, _: &str, _: &str, _: &str) -> Result<()> {
+    async fn remember(&self, run: &Run, _: &str, source: &str, _: &str) -> Result<()> {
         ensure!(!self.fail_memory.replace(false), "memory unavailable");
+        self.calls
+            .borrow_mut()
+            .push(format!("remember:{}:{source}", run.workflow_id()));
         Ok(())
     }
-    fn invoke(&self, run: &Run, _: &str, planning: bool) -> Result<String> {
+    fn invoke(&self, run: &Run, prompt: &str, planning: bool) -> Result<String> {
         self.calls
             .borrow_mut()
             .push(format!("host:{}:{planning}", run.host.name()));
+        self.calls
+            .borrow_mut()
+            .push(format!("prompt:{}", prompt.lines().next().unwrap()));
         Ok("plan or completed build".into())
     }
     fn write_plan(&self, _: &Run, _: &str) -> Result<String> {
@@ -141,6 +161,7 @@ async fn build_flow(p: &Fake) -> Run {
     let run = application::start(
         p,
         Start {
+            workflow: "delivery".into(),
             request: "request".into(),
             policy: "policy".into(),
             host: Host::Codex,
@@ -196,6 +217,7 @@ async fn failed_task_transfer_can_resume_without_reinvoking_host() {
     let run = application::start(
         &p,
         Start {
+            workflow: "delivery".into(),
             request: "request".into(),
             policy: "policy".into(),
             host: Host::Codex,
@@ -321,4 +343,44 @@ async fn changed_task_claim_blocks_first_publication() {
             .is_err()
     );
     assert!(!p.published.get());
+}
+
+#[tokio::test]
+async fn selected_bugfix_methods_follow_handoff_through_verified_publication() {
+    let p = Fake::new();
+    let run = application::start(
+        &p,
+        Start {
+            workflow: "bugfix".into(),
+            request: "request".into(),
+            policy: "policy".into(),
+            host: Host::Codex,
+            allow_commit: true,
+            allow_publish: true,
+        },
+    )
+    .await
+    .unwrap();
+    application::plan(&p, &run.id, 1).await.unwrap();
+    application::handoff(&p, &run.id, 1, Host::ClaudeCode)
+        .await
+        .unwrap();
+    application::build(&p, &run.id, 2).await.unwrap();
+    application::handoff(&p, &run.id, 2, Host::Codex)
+        .await
+        .unwrap();
+    application::verify(&p, &run.id, 3, "fix(example): repair observed defect")
+        .await
+        .unwrap();
+    let shipped = application::ship(&p, &run.id, 3, "fix(example): repair observed defect")
+        .await
+        .unwrap();
+    assert_eq!(shipped.workflow_id(), "bugfix");
+    assert_eq!(shipped.stage, allstack::domain::Stage::Shipped);
+    let publication = shipped.publication.unwrap();
+    assert!(publication.task_completed && publication.memory_indexed);
+    let calls = p.calls.borrow();
+    assert!(calls.contains(&"prompt:diagnose".into()));
+    assert!(calls.contains(&"prompt:repair".into()));
+    assert!(calls.contains(&"remember:bugfix:https://github.com/example/project/pull/1".into()));
 }

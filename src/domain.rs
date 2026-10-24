@@ -129,6 +129,13 @@ pub struct Publication {
     pub memory_indexed: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorkflowSelection {
+    pub id: String,
+    pub path: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Run {
@@ -139,6 +146,8 @@ pub struct Run {
     pub base: String,
     pub trunk: String,
     pub workflow: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selection: Option<WorkflowSelection>,
     pub methods: BTreeMap<String, String>,
     pub method_paths: BTreeMap<String, String>,
     pub policy: String,
@@ -165,6 +174,18 @@ pub struct Run {
 }
 
 impl Run {
+    pub fn workflow_id(&self) -> &str {
+        self.selection
+            .as_ref()
+            .map_or("delivery", |s| s.id.as_str())
+    }
+
+    pub fn workflow_path(&self) -> &str {
+        self.selection
+            .as_ref()
+            .map_or("workflows/delivery.toml", |s| s.path.as_str())
+    }
+
     pub fn check_epoch(&self, epoch: u64) -> Result<(), String> {
         if self.epoch != epoch {
             Err(format!(
@@ -231,6 +252,7 @@ pub fn validate_transition(previous: Option<&Run>, event: &Event) -> Result<(), 
             if old.repository != event.run.repository
                 || old.branch != event.run.branch
                 || old.workflow != event.run.workflow
+                || old.selection != event.run.selection
                 || old.methods != event.run.methods
                 || old.method_paths != event.run.method_paths
                 || old.policy != event.run.policy

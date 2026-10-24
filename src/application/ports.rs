@@ -3,6 +3,7 @@ use anyhow::Result;
 use serde_json::Value;
 
 pub struct Start {
+    pub workflow: String,
     pub request: String,
     pub policy: String,
     pub host: Host,

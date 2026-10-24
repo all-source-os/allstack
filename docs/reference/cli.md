@@ -22,6 +22,10 @@ Run `allstack -C /path/to/target-repository doctor` (add `--policy <path>` for a
 
 `init --check` returns `ready: false` with planned paths, digests, conflicts, and missing prerequisites when setup cannot be applied. Existing Chronis engine readback is explicitly deferred until apply; opening its engine could write storage metadata. Check-mode readiness covers resource and executable preflight, with that readback still outstanding. Applying failed preflight stops before writing managed resources or initializing Chronis. Symlinks, traversal, reserved policy destinations, and nonregular/multiply-linked files are refused. File creation cannot replace a destination introduced after preflight. Index/ignore updates append bytes after comparing the original contents. Concurrent edits can require inspection and a rerun.
 
+## Workflow selection
+
+Use `allstack catalog` to list repository workflows or `allstack catalog bugfix` to inspect evidence-led diagnosis and repair. Pass `start --workflow bugfix` to select it; the default remains `delivery`. See the [catalog reference](workflow-catalog.md) for contracts and additive initialization. Catalog discovery opens no mutable run store. Existing repositories without a catalog and retained runs without selection metadata preserve legacy delivery behavior.
+
 ## Frozen verification policy
 
 Create a repository-relative TOML file such as `workflows/verification.toml`:

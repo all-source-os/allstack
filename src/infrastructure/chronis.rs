@@ -53,7 +53,11 @@ impl Tasks<'_> {
                 "create",
                 &title,
                 "-d",
-                &format!("Allstack run {}; source-linked delivery", run.id),
+                &format!(
+                    "Allstack run {}; source-linked workflow {}",
+                    run.id,
+                    run.workflow_id()
+                ),
             ],
             None,
         )?;

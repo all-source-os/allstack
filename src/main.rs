@@ -27,6 +27,7 @@ async fn main() {
                     cli.command,
                     allstack::presentation::Action::Init { .. }
                         | allstack::presentation::Action::Doctor { .. }
+                        | allstack::presentation::Action::Catalog { .. }
                 ) {
                     Some(Scratch::new()?)
                 } else {

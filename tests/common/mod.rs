@@ -10,6 +10,7 @@ pub fn run() -> Run {
         base: "base".into(),
         trunk: "main".into(),
         workflow: "workflow".into(),
+        selection: None,
         methods: [
             ("plan".into(), "plan-method".into()),
             ("build".into(), "build-method".into()),
