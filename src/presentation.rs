@@ -4,7 +4,7 @@ use crate::{
         ports::{Platform, Start},
     },
     domain::Host,
-    infrastructure::{git, process, runtime::Runtime},
+    infrastructure::{bootstrap, git, process, runtime::Runtime},
 };
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
@@ -22,7 +22,18 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Action {
-    Doctor,
+    Doctor {
+        #[arg(long, default_value = "workflows/verification.toml")]
+        policy: String,
+    },
+    Init {
+        #[arg(long)]
+        check: bool,
+        #[arg(long, value_parser = ["rust"])]
+        profile: Option<String>,
+        #[arg(long, default_value = "workflows/verification.toml")]
+        policy: String,
+    },
     Start {
         #[arg(long)]
         request: String,
@@ -99,6 +110,15 @@ pub enum Action {
 
 pub async fn execute(cli: Cli) -> Result<Value> {
     let repo = git::root(&cli.repository)?;
+    match &cli.command {
+        Action::Init {
+            check,
+            profile,
+            policy,
+        } => return bootstrap::initialize(&repo, *check, profile.as_deref(), policy),
+        Action::Doctor { policy } => return bootstrap::doctor(&repo, policy),
+        _ => {}
+    }
     let runtime = Runtime::open(&repo).await?;
     let result = dispatch(&runtime, cli.command).await;
     let shutdown = runtime.shutdown().await;
@@ -109,7 +129,9 @@ pub async fn execute(cli: Cli) -> Result<Value> {
 
 async fn dispatch(p: &Runtime, action: Action) -> Result<Value> {
     let run = match action {
-        Action::Doctor => return Ok(p.doctor()),
+        Action::Doctor { .. } | Action::Init { .. } => {
+            unreachable!("setup commands dispatch before opening run storage")
+        }
         Action::Start {
             request,
             policy,

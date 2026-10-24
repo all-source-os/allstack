@@ -1,4 +1,5 @@
 use allstack::infrastructure::{
+    bootstrap::Scratch,
     git,
     process::{self, Spec},
 };
@@ -22,6 +23,15 @@ async fn main() {
             let cli = allstack::presentation::Cli::parse();
             (|| -> anyhow::Result<serde_json::Value> {
                 let repo = git::root(&cli.repository)?;
+                let scratch = if matches!(
+                    cli.command,
+                    allstack::presentation::Action::Init { .. }
+                        | allstack::presentation::Action::Doctor { .. }
+                ) {
+                    Some(Scratch::new()?)
+                } else {
+                    None
+                };
                 let mut argv = vec![
                     std::env::current_exe()?.to_string_lossy().into_owned(),
                     "__operation".into(),
@@ -33,7 +43,10 @@ async fn main() {
                     seconds: 290,
                     environment: BTreeMap::new(),
                     input: None,
-                    directory: repo.join(".allstack/process"),
+                    directory: scratch
+                        .as_ref()
+                        .map(|s| s.0.join("process"))
+                        .unwrap_or_else(|| repo.join(".allstack/process")),
                 })?;
                 anyhow::ensure!(
                     output.success(),

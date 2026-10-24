@@ -75,15 +75,6 @@ impl Runtime {
         }
         Ok(digest(&serde_json::to_vec(&data)?))
     }
-    pub fn doctor(&self) -> Value {
-        let tools: Vec<_> = ["codex", "claude", "cn", "git", "gh"].iter().map(|name| {
-            let result = process::checked(&self.state, &self.repo, &[name, "--version"]);
-            json!({"tool":name,"available":result.is_ok(),"version":result.ok().map(|s| s.lines().next().unwrap_or("").to_string())})
-        }).collect();
-        json!({"repository":self.repo,"store":self.state,"durability":"fsync-per-event",
-            "coordinator":"exclusive-kernel-lock-per-command","prime":"embedded graph; lexical recall; local-only","prime_available":self.memory.is_some(),
-            "host_scope":"sequential-same-machine","tools":tools})
-    }
 }
 
 impl Platform for Runtime {

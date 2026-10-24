@@ -8,15 +8,19 @@ Use one Unix machine with Git, GitHub CLI, Rust/Cargo, Chronis `cn`, Codex CLI, 
 
 Install from the reviewed Allstack checkout with `cargo install --path . --locked`. The Rust package requires Rust 1.95 or later. `allstack --help` and each subcommand's `--help` expose the installed interface.
 
+Put the installed executable directory on the `PATH` inherited by both coding hosts. A custom `cargo install --root <prefix>` needs `<prefix>/bin` there as well. Keep the selected policy environment stable from verification through shipping. The [fresh-repository verification](../reports/2026-10-24-fresh-repository-delivery-verification.md) records the complete authenticated journey and actual destination readbacks.
+
 Prepare the target repository before starting:
 
 1. Use an existing feature branch whose creation the user authorized. Confirm its PR has not merged. Allstack does not create branches.
-2. Initialize project task storage with `cn init --toon` when `.chronis/` does not exist. Allstack uses this repository's Chronis store through `cn --toon`.
-3. Provide `docs/README.md`, a request document, `workflows/delivery.toml`, and the referenced `workflows/methods/plan.md` and `workflows/methods/build.md` documents. Use the versioned delivery definition and methods from this repository as the starting point.
-4. Provide the verification policy described below. Commit the prepared inputs through the repository's normal authorized process so the starting tree is clean. Ignore `.allstack/` and machine-local Chronis storage; do not commit either store.
+2. Inspect bundled setup with `allstack init --check --profile rust`, then apply with `allstack init --profile rust`. The explicit Rust profile requires `Cargo.toml` and `Cargo.lock`. For existing verification data, use `allstack init --policy <repository-relative-path>` instead. Check mode creates no target files or project store.
+3. Initialization installs `workflows/delivery.toml`, referenced methods, `docs/reference/allstack.md`, its documentation index entry, and repository-local skills in `.agents/skills/allstack-delivery/` and `.claude/skills/allstack-delivery/`. It appends private-store ignores and initializes Chronis with `cn init --toon` only when the target store is absent. Existing custom policies, instructions, and documentation remain intact. Different managed resources are conflicts; resolve them explicitly before rerunning.
+4. Review the policy described below against the repository's required checks. Add and index a request document. Commit the prepared inputs through the repository's normal authorized process so the starting tree is clean. Initialization does not run gates, create a branch, commit, publish, authenticate hosts, or install global skills. Partial failures name completed paths; inspect their effects before rerunning. There is no force-overwrite mode.
 5. Ensure repository setup works in a new detached worktree. Gitignored dependencies and build output are not included in source snapshots. Prepare required local inputs explicitly before invoking managed work.
 
-Run `allstack -C /path/to/target-repository doctor`. Its JSON reports the actual repository and state directory, local durability mode, coordinator model, Prime scope, and probed tool versions. A successful `--version` probe establishes executable availability; it does not establish authentication, model access, or host behavior.
+Run `allstack -C /path/to/target-repository doctor` (add `--policy <path>` for a custom policy). Its JSON separates `setup_ready` from `executables_ready`, reports missing/conflicting resources, actual ignore behavior, tracked private files, Chronis engine readback, and tool versions. It does not open mutable AllSource/Prime run stores. A successful `--version` probe establishes executable availability; it does not establish authentication, model access, or host behavior.
+
+`init --check` returns `ready: false` with planned paths, digests, conflicts, and missing prerequisites when setup cannot be applied. Existing Chronis engine readback is explicitly deferred until apply; opening its engine could write storage metadata. Check-mode readiness covers resource and executable preflight, with that readback still outstanding. Applying failed preflight stops before writing managed resources or initializing Chronis. Symlinks, traversal, reserved policy destinations, and nonregular/multiply-linked files are refused. File creation cannot replace a destination introduced after preflight. Index/ignore updates append bytes after comparing the original contents. Concurrent edits can require inspection and a rerun.
 
 ## Frozen verification policy
 
