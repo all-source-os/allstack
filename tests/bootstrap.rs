@@ -168,6 +168,9 @@ fn assert_setup(f: &Fixture) {
     assert_eq!(doctor["setup_ready"], true, "{doctor}");
     assert_eq!(doctor["chronis"], "readable");
     assert_eq!(doctor["authentication"], "not-probed");
+    assert_eq!(doctor["catalog"]["workflows"].as_array().unwrap().len(), 2);
+    assert_eq!(f.json(&["catalog", "bugfix"])["id"], "bugfix");
+    assert!(!f.repo.join(".allstack").exists());
     let before = f.fingerprint();
     let second = f.json(&["init"]);
     assert!(
@@ -191,6 +194,59 @@ fn assert_setup(f: &Fixture) {
     let (ok, _, err) = f.run(&["init"]);
     assert!(!ok && err.contains("conflict"), "{err}");
     assert_eq!(f.fingerprint(), before);
+}
+
+#[test]
+fn catalog_initialization_adds_resources_to_legacy_setup_without_replacing_bytes() {
+    let f = Fixture::new(false);
+    f.json(&["init", "--profile", "rust"]);
+    let preserved = [
+        "workflows/delivery.toml",
+        "workflows/methods/plan.md",
+        "workflows/methods/build.md",
+        "docs/reference/allstack.md",
+        ".agents/skills/allstack-delivery/SKILL.md",
+        ".claude/skills/allstack-delivery/SKILL.md",
+        "workflows/verification.toml",
+    ];
+    let bytes: Vec<_> = preserved
+        .iter()
+        .map(|p| fs::read(f.repo.join(p)).unwrap())
+        .collect();
+    for path in [
+        "workflows/catalog.toml",
+        "workflows/bugfix.toml",
+        "workflows/methods/diagnose.md",
+        "workflows/methods/repair.md",
+        "docs/reference/allstack-catalog.md",
+        ".agents/skills/allstack-catalog/SKILL.md",
+        ".claude/skills/allstack-catalog/SKILL.md",
+    ] {
+        fs::remove_file(f.repo.join(path)).unwrap();
+    }
+    let index =
+        "# Existing documentation\n\n- [Allstack CLI and recovery](reference/allstack.md)\n";
+    fs::write(f.repo.join("docs/README.md"), index).unwrap();
+    assert_eq!(
+        f.json(&["catalog"])["workflows"].as_array().unwrap().len(),
+        1
+    );
+    let check = f.json(&["init", "--check"]);
+    assert_eq!(check["ready"], true);
+    assert!(!f.repo.join("workflows/catalog.toml").exists());
+    f.json(&["init"]);
+    for (path, expected) in preserved.iter().zip(bytes) {
+        assert_eq!(fs::read(f.repo.join(path)).unwrap(), expected, "{path}");
+    }
+    assert!(
+        fs::read_to_string(f.repo.join("docs/README.md"))
+            .unwrap()
+            .starts_with(index)
+    );
+    assert_eq!(
+        f.json(&["catalog"])["workflows"].as_array().unwrap().len(),
+        2
+    );
 }
 
 #[test]

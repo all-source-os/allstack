@@ -4,7 +4,7 @@ use crate::{
         ports::{Platform, Start},
     },
     domain::Host,
-    infrastructure::{bootstrap, git, process, runtime::Runtime},
+    infrastructure::{bootstrap, catalog, git, process, runtime::Runtime},
 };
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
@@ -22,6 +22,9 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Action {
+    Catalog {
+        workflow: Option<String>,
+    },
     Doctor {
         #[arg(long, default_value = "workflows/verification.toml")]
         policy: String,
@@ -35,6 +38,8 @@ pub enum Action {
         policy: String,
     },
     Start {
+        #[arg(long, default_value = "delivery")]
+        workflow: String,
         #[arg(long)]
         request: String,
         #[arg(long)]
@@ -117,6 +122,7 @@ pub async fn execute(cli: Cli) -> Result<Value> {
             policy,
         } => return bootstrap::initialize(&repo, *check, profile.as_deref(), policy),
         Action::Doctor { policy } => return bootstrap::doctor(&repo, policy),
+        Action::Catalog { workflow } => return catalog::inspect(&repo, workflow.as_deref()),
         _ => {}
     }
     let runtime = Runtime::open(&repo).await?;
@@ -129,10 +135,11 @@ pub async fn execute(cli: Cli) -> Result<Value> {
 
 async fn dispatch(p: &Runtime, action: Action) -> Result<Value> {
     let run = match action {
-        Action::Doctor { .. } | Action::Init { .. } => {
+        Action::Doctor { .. } | Action::Init { .. } | Action::Catalog { .. } => {
             unreachable!("setup commands dispatch before opening run storage")
         }
         Action::Start {
+            workflow,
             request,
             policy,
             host,
@@ -142,6 +149,7 @@ async fn dispatch(p: &Runtime, action: Action) -> Result<Value> {
             application::start(
                 p,
                 Start {
+                    workflow,
                     request,
                     policy,
                     host,

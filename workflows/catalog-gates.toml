@@ -1,0 +1,29 @@
+command_seconds = 240
+environment = ["PATH", "RUSTUP_TOOLCHAIN", "RUSTFLAGS", "CARGO_TARGET_DIR", "RUSTC_WRAPPER"]
+
+[[gates]]
+name = "format"
+argv = ["cargo", "fmt", "--all", "--", "--check"]
+
+[[gates]]
+name = "runtime and catalog regression"
+argv = ["cargo", "nextest", "run", "--locked", "--offline"]
+success_marker = "tests run:"
+test = true
+compile = true
+
+[[gates]]
+name = "lint"
+argv = ["cargo", "clippy", "--all-targets", "--locked", "--offline", "--", "-D", "warnings"]
+compile = true
+
+[[gates]]
+name = "both host fixtures"
+argv = ["cargo", "test", "--manifest-path", "fixtures/handoff/Cargo.toml", "--locked", "--offline", "--tests"]
+success_marker = "2 passed"
+test = true
+compile = true
+
+[[gates]]
+name = "source whitespace"
+argv = ["git", "diff", "--check", "origin/main", "HEAD"]

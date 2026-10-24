@@ -1,4 +1,5 @@
 use super::{
+    catalog,
     chronis::Tasks,
     digest, forge, git, hosts,
     memory::Memory,
@@ -8,7 +9,7 @@ use super::{
 };
 use crate::{
     application::ports::{Platform, Start},
-    domain::{Policy, Publication, Run, Stage, Verification},
+    domain::{Policy, Publication, Run, Stage, Verification, WorkflowSelection},
 };
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
@@ -123,24 +124,12 @@ impl Platform for Runtime {
         let policy_bytes = fs::read(workspace::contained(&self.repo, &input.policy)?)?;
         let policy: Policy = toml::from_str(std::str::from_utf8(&policy_bytes)?)?;
         policy.validate().map_err(anyhow::Error::msg)?;
-        let workflow_bytes = fs::read(self.repo.join("workflows/delivery.toml"))?;
-        let definition: toml::Value = toml::from_str(std::str::from_utf8(&workflow_bytes)?)?;
-        ensure!(
-            definition["schema_version"].as_integer() == Some(1)
-                && definition["id"].as_str() == Some("delivery"),
-            "unsupported workflow schema or method"
-        );
+        let selected = catalog::select(&self.repo, &input.workflow)?;
         let mut methods = BTreeMap::new();
         let mut method_paths = BTreeMap::new();
-        for method in ["plan", "build"] {
-            let path = definition["methods"][method]
-                .as_str()
-                .context("workflow method path missing")?;
-            methods.insert(
-                method.into(),
-                self.put(&fs::read(workspace::contained(&self.repo, path)?)?)?,
-            );
-            method_paths.insert(method.into(), path.to_string());
+        for (method, data) in &selected.methods {
+            methods.insert(method.clone(), self.put(&data.bytes)?);
+            method_paths.insert(method.clone(), data.path.clone());
         }
         let base = git::call(&self.state, &self.repo, &["rev-parse", "HEAD"])?;
         let id = uuid::Uuid::new_v4().to_string();
@@ -160,7 +149,11 @@ impl Platform for Runtime {
             branch,
             base,
             trunk,
-            workflow: self.put(&workflow_bytes)?,
+            workflow: self.put(&selected.bytes)?,
+            selection: Some(WorkflowSelection {
+                id: selected.id,
+                path: selected.path,
+            }),
             methods,
             method_paths,
             policy: self.put(&policy_bytes)?,
@@ -225,7 +218,7 @@ impl Platform for Runtime {
         self.memory
             .as_ref()
             .context("Prime unavailable; run state remains readable and indexing remains pending")?
-            .record(&run.id, phase, source, summary)
+            .record(&run.id, run.workflow_id(), phase, source, summary)
             .await
     }
     fn invoke(&self, run: &Run, prompt: &str, planning: bool) -> Result<String> {
@@ -329,18 +322,7 @@ impl Platform for Runtime {
                 == workspace::content_digest(&self.store.artifacts, &run.checkpoint)?,
             "candidate content differs from accepted checkpoint"
         );
-        let workflow = fs::read(self.repo.join("workflows/delivery.toml"))?;
-        ensure!(
-            digest(&workflow) == run.workflow,
-            "workflow definition changed"
-        );
-        for (method, path) in &run.method_paths {
-            ensure!(
-                run.methods.get(method)
-                    == Some(&digest(&fs::read(workspace::contained(&self.repo, path)?)?)),
-                "workflow method changed from accepted scope"
-            );
-        }
+        catalog::verify_scope(&self.repo, run)?;
         ensure!(
             digest(&fs::read(workspace::contained(
                 &self.repo,

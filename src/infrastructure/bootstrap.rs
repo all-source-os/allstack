@@ -11,6 +11,34 @@ use std::{
 
 const RESOURCES: &[(&str, &str)] = &[
     (
+        "workflows/catalog.toml",
+        include_str!("../../workflows/catalog.toml"),
+    ),
+    (
+        "workflows/bugfix.toml",
+        include_str!("../../workflows/bugfix.toml"),
+    ),
+    (
+        "workflows/methods/diagnose.md",
+        include_str!("../../workflows/methods/diagnose.md"),
+    ),
+    (
+        "workflows/methods/repair.md",
+        include_str!("../../workflows/methods/repair.md"),
+    ),
+    (
+        "docs/reference/allstack-catalog.md",
+        include_str!("../../templates/catalog.md"),
+    ),
+    (
+        ".agents/skills/allstack-catalog/SKILL.md",
+        include_str!("../../templates/catalog-SKILL.md"),
+    ),
+    (
+        ".claude/skills/allstack-catalog/SKILL.md",
+        include_str!("../../templates/catalog-SKILL.md"),
+    ),
+    (
         "workflows/delivery.toml",
         include_str!("../../workflows/delivery.toml"),
     ),
@@ -152,7 +180,10 @@ fn plan(root: &Root, profile: Option<&str>, policy: &str) -> Result<(Vec<Change>
     files.push(append(
         root,
         "docs/README.md",
-        &[INDEX],
+        &[
+            INDEX,
+            "- [Allstack workflow catalog](reference/allstack-catalog.md)",
+        ],
         "# Documentation\n\n",
     )?);
     for path in [".allstack", ".prime", ".chronis"] {
@@ -378,10 +409,17 @@ pub fn doctor(repo: &Path, policy: &str) -> Result<Value> {
         json!({"tool":name,"available":result.is_ok(),"version":result.ok().map(|s| s.lines().next().unwrap_or("").to_string())})
     }).collect();
     let available = tools.iter().all(|t| t["available"] == true);
+    let catalog = match super::catalog::inspect(repo, None) {
+        Ok(value) => value,
+        Err(error) => {
+            missing.push(format!("workflow catalog invalid: {error:#}"));
+            json!({"error":format!("{error:#}")})
+        }
+    };
     Ok(
         json!({"repository":repo,"store":repo.join(".allstack"),"setup_ready":missing.is_empty(),
         "executables_ready":available,"authentication":"not-probed","missing":missing,"files":files,"chronis":chronis,
-        "stores_opened":false,"allsource":"embedded; fsync-per-event when run storage opens",
+         "catalog":catalog,"stores_opened":false,"allsource":"embedded; fsync-per-event when run storage opens",
         "prime":"embedded graph; lexical recall; local-only; not opened by doctor",
         "coordinator":"exclusive-kernel-lock-per-run-command","host_scope":"sequential-same-machine","tools":tools}),
     )
