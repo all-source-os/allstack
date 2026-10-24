@@ -1,0 +1,17 @@
+command_seconds = 120
+environment = ["PATH", "RUSTUP_TOOLCHAIN", "RUSTFLAGS", "RUSTC_WRAPPER", "CARGO_TARGET_DIR"]
+
+[[gates]]
+name = "format"
+argv = ["cargo", "fmt", "--check"]
+
+[[gates]]
+name = "tests"
+argv = ["cargo", "test", "--locked"]
+success_marker = "test result: ok."
+test = true
+compile = true
+
+[[gates]]
+name = "diff"
+argv = ["git", "diff", "--check"]

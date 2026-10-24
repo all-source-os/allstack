@@ -34,10 +34,18 @@ Install from a reviewed checkout with Rust 1.95 or later:
 ```sh
 cargo install --path . --locked
 allstack --help
+allstack -C /path/to/target-repository init --check --profile rust
+allstack -C /path/to/target-repository init --profile rust
 allstack -C /path/to/target-repository doctor
 ```
 
-The target needs an existing authorized feature branch, a GitHub `origin`, initialized Chronis, indexed documentation, workflow methods, and a frozen verification policy. Both coding hosts need their normal authentication and permissions. Follow the [CLI guide](docs/reference/cli.md) for setup and the complete Codex → Claude Code → Codex sequence.
+`init` bundles workflow methods, indexed CLI documentation, repository-local Codex/Claude guidance, private-store ignores, and Chronis initialization. The explicit Rust profile requires `Cargo.toml` and `Cargo.lock`; an existing valid `--policy <path>` supports custom verification. Conflicting managed files are preserved and block writes. Reruns fill missing resources without replacing existing policies or repository instructions. Review initialized inputs before committing them.
+
+The [installed-bootstrap verification report](docs/reports/2026-10-24-repository-bootstrap-verification.md) records fresh setup with actual Chronis and generated-policy execution while source-checkout reads were denied.
+
+The [fresh-repository delivery report](docs/reports/2026-10-24-fresh-repository-delivery-verification.md) extends that proof through authenticated Codex → Claude Code → Codex handoffs, five executed acceptance tests, and a newly published [example PR](https://github.com/all-source-os/allstack-example/pull/1).
+
+Starting a run needs an existing authorized feature branch, a GitHub `origin`, clean indexed inputs, and a frozen verification policy. Both coding hosts need their normal authentication and permissions. `doctor` reads setup and executable availability without opening mutable run stores; it does not authenticate hosts. Follow the [CLI guide](docs/reference/cli.md) for setup and the complete Codex → Claude Code → Codex sequence.
 
 Each command holds an exclusive kernel lock on the local store. There is no persistent coordinator daemon or IPC service. Epoch checks fence Allstack-managed transitions; native tools used outside Allstack remain outside that boundary.
 
