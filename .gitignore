@@ -3,5 +3,5 @@
 /.prime/
 /.env
 /.env.*
-/target/
+**/target/
 .DS_Store

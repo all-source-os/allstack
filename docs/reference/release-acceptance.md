@@ -1,6 +1,6 @@
 # First-release acceptance scenarios
 
-Status: specification only. Every checkbox remains open until retained evidence establishes it.
+Status: implementation-preview release gate. Every checkbox remains open until retained evidence establishes it. Source-level contracts, passing unit tests, and journey definitions do not by themselves establish authenticated host behavior.
 
 ## Complete job
 
@@ -23,7 +23,7 @@ Status: specification only. Every checkbox remains open until retained evidence 
 ## Storage and component consistency
 
 - [ ] Actual AllSource writes survive process restart with complete, validated sequence and idempotent operation recovery.
-- [ ] Competing coordinators cannot mutate one local run store.
+- [ ] Competing CLI coordinators cannot mutate one local run store; the per-command kernel lock and stale-epoch checks are exercised across real processes.
 - [ ] Corrupt, truncated, reordered, duplicated, or partially retained history cannot produce a verified stage.
 - [ ] Reusing an operation ID with different input fails; lost append acknowledgements recover by reading the store.
 - [ ] Crash between run state and Chronis/Prime update leaves recoverable pending work rather than contradictory completion claims.
@@ -45,7 +45,7 @@ Status: specification only. Every checkbox remains open until retained evidence 
 ## Process and privacy boundary
 
 - [ ] Owned commands time out within 300 seconds, then terminate and reap their owned process tree.
-- [ ] Supervisor death cannot leak children; process-level evidence checks this invariant.
+- [ ] Caller or guardian death cannot leak owned children; process-level evidence checks the owner-pipe and kill/reap invariant.
 - [ ] One local build runs at a time; external competing builds are observed without terminating another session's work.
 - [ ] Runtime stores, unredacted transcripts, source snapshots, credentials, and live capabilities stay out of the public repository.
 - [ ] Host support documentation distinguishes managed-action enforcement, advisory guidance, and unsupported operations.
@@ -55,3 +55,11 @@ Status: specification only. Every checkbox remains open until retained evidence 
 Retain the release binary/package digests, host and component versions, workflow digest, synthetic fixture revision, complete run IDs, exact delivered commit SHAs, actual check outputs, interruption points, and reconciled publication receipts. Publish an indexed evidence document containing only material intentionally suitable for public distribution.
 
 Passing scaffold validation establishes only that documentation links and example workflow data are consistent. It cannot satisfy any runtime checkbox above.
+
+## Preview coverage boundary
+
+The runtime uses AllSource Core 0.26.1 embedded storage, Chronis through `cn --toon`, and an embedded Prime graph with lexical recall. Each CLI command owns an exclusive kernel lock; no persistent daemon or authenticated IPC service exists. Epoch fencing covers managed transitions and publication. Native host tools outside Allstack remain outside that enforcement boundary.
+
+Release evidence must cover both host directions, not infer one from the other. Fixture placeholders are specifications awaiting actual host execution. A fixture name or manually written lifecycle event cannot satisfy the real-host criteria.
+
+The initial scope is one Unix machine, sequential detached worktrees, `github.com` publication, and positive Cargo/nextest test execution counts. Snapshots require explicitly staged new files and reject symlinks and recognized sensitive filenames, with caps of 4 MiB per file, 64 MiB total, and 10,000 files. These exclusions are not a complete secret scanner. Merge, deployment, vector retrieval, hosted sync, and cross-machine import/export are outside the preview.

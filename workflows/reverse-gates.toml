@@ -1,0 +1,20 @@
+command_seconds = 240
+environment = ["PATH", "RUSTFLAGS", "CARGO_TARGET_DIR", "RUSTC_WRAPPER"]
+
+[[gates]]
+name = "runtime regression"
+argv = ["cargo", "nextest", "run", "--locked", "--offline"]
+success_marker = "tests run:"
+test = true
+compile = true
+
+[[gates]]
+name = "both host changes"
+argv = ["cargo", "test", "--manifest-path", "fixtures/handoff/Cargo.toml", "--offline", "--tests"]
+success_marker = "2 passed"
+test = true
+compile = true
+
+[[gates]]
+name = "source whitespace"
+argv = ["git", "diff", "--check", "HEAD^", "HEAD"]

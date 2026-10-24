@@ -1,0 +1,29 @@
+[package]
+name = "allstack"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license = "Apache-2.0"
+description = "Durable cross-host plan, build, verify, and ship workflows"
+repository = "https://github.com/all-source-os/allstack"
+
+[dependencies]
+allsource-core = { version = "=0.26.1", default-features = false, features = ["embedded", "prime"] }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+toml = "1.1"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.dev]
+debug = 0
+
+[profile.test]
+debug = 0
