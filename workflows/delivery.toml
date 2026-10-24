@@ -1,12 +1,16 @@
 schema_version = 1
 id = "delivery"
-version = "0.1.0-design"
-status = "specification"
+version = "0.1.0-preview"
+status = "implementation-preview"
 description = "Plan, build, verify, and publish one change across sequential coding hosts."
-hosts = ["codex-cli", "claude-code"]
+hosts = ["codex", "claude-code"]
 host_scope = "sequential-same-machine"
 stage_order = ["plan", "build", "verify", "ship"]
 dispositions = ["ready", "active", "awaiting_authority", "blocked", "outcome_unknown"]
+
+[methods]
+plan = "workflows/methods/plan.md"
+build = "workflows/methods/build.md"
 
 [storage]
 run_authority = "allsource-core"

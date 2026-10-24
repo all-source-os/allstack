@@ -2,9 +2,9 @@
 
 Date: 2026-10-24
 
-Status: proposed implementation design; no runtime implemented
+Status: implementation preview; end-to-end release evidence required
 
-Confidence: sand. The component boundaries are understood; durable ordering, authority transfer, and actual host interoperability require proof.
+Confidence: sand. The runtime implements the component boundaries and managed workflow. Actual host interoperability, interruption recovery, and installed-artifact behavior require retained proof against the release acceptance scenarios.
 
 Publication target: `all-source-os/allstack`
 
@@ -32,44 +32,50 @@ Repository guidance remains authoritative for branch creation, commits, pushes, 
 | Direct gstack fork | Existing catalog and behavior available earlier | Carries upstream structure and maintenance obligations |
 | Hosted agent platform | Shared access and centralized execution | Adds infrastructure before the local workflow is proven |
 
-Choose a new toolkit. Reuse individual upstream methods only when their license and behavior fit. Keep upstream attribution with every reused portion. This scaffold contains original design prose, not copied gstack skills.
+Choose a new toolkit. Reuse individual upstream methods only when their license and behavior fit. Keep upstream attribution with every reused portion. The workflow methods and design prose are original.
 
 ## Ownership and topology
 
 | Concern | Authority | Derived or cached view |
 | --- | --- | --- |
 | Workflow stage, handoff epoch, operation outcome | Allstack domain events in AllSource Core | CLI status and host context bundle |
-| Task status, dependencies, task claimant | Chronis task stream | Run stores task reference and observed revision |
-| Decisions and incident recall | Prime nodes with source references | Semantic index; never permission or execution state |
+| Task status, dependencies, task claimant | Chronis task stream | Run stores task reference; adapter reads back claimant and status |
+| Decisions and incident recall | Embedded Prime delivery nodes with source references | Local lexical matching; never permission or execution state |
 | Files and commits | Git plus retained workspace snapshot | Content manifests and digests |
 | Remote branch and pull request | Git remote and forge | Publication receipts recording read-back evidence |
 | Current authority to act | Explicit user instruction and trusted host policy | Scoped operation authorization record |
 
 Use existing component APIs. Do not open their WAL or Parquet files directly. Separate namespaces and component-owned stores are acceptable: owning different facts is different from maintaining competing copies of the same fact.
 
-One local Rust coordinator owns the run store and serializes workflow writes. CLI invocations and both host adapters talk to that process over authenticated local IPC. It uses AllSource's engine with acknowledged durable writes, not a parallel JSON or SQLite run database. Startup rehydrates and validates the event stream before accepting mutations. It never obtains authority to execute work merely by finding an old event.
+Each CLI invocation is the coordinator for its operation. It acquires an exclusive kernel lock on `.allstack/coordinator.lock` before opening the mutable store, holds it through component updates, and releases it on shutdown. Another command fails as busy instead of competing with an active mutation. The runtime embeds AllSource Core 0.26.1 with WAL synchronization on each event; run events do not live in a parallel JSON or SQLite database. Reads validate the retained revision chain and transition contracts before using a run.
 
-Keep domain types and transitions pure. Application services depend on storage, task, recall, process, and forge ports. Infrastructure implements those ports; CLI, IPC, and MCP remain presentation edges. Composition binds the adapters. Add import-boundary checks with the first executable code so transports cannot bypass application rules.
+This preview chooses a command-scoped lock instead of the original persistent-daemon topology. Authenticated local IPC is therefore absent. Epoch checks and the locked coordinator fence managed operations on the sequential same-machine path. An epoch is not a secret or a host identity credential; native commands outside Allstack are not sandboxed by it. A future remote or multi-user service would need an authenticated authority boundary before expanding this claim.
 
-Coordinator startup, readiness, ownership, shutdown, crash recovery, and store locking require executable proof. Two coordinators must not open the same mutable run store. No implicit remote fallback is allowed. `doctor` reports actual store locations, versions, durability mode, capabilities, and sync state without disclosing credentials.
+Keep domain types and transitions pure. Application services depend on storage, task, recall, process, and forge ports. Infrastructure implements those ports; the CLI is the presentation edge. Composition binds the adapters. Import-boundary checks keep application services independent of infrastructure and presentation.
 
-## Proposed user interface
+Coordinator startup, ownership, shutdown, crash recovery, and store locking require executable proof. Two coordinators must not open the same mutable run store. No implicit remote fallback is allowed. `doctor` reports actual local paths, durability mode, coordinator model, Prime scope, and probed tool versions. Version probes do not prove authentication or successful host execution.
 
-These examples are design targets, not available commands:
+## User interface
+
+The CLI returns JSON. The [CLI guide](../reference/cli.md) specifies prerequisites, authority flags, frozen policy, and recovery. An uninterrupted example uses the current epoch returned by each handoff:
 
 ```text
 allstack doctor
-allstack start --workflow delivery --request docs/requests/example.md
+allstack start --request docs/requests/example.md --policy workflows/verification.toml --host codex --allow-commit --allow-publish
+allstack plan <run> --epoch 1
 allstack status <run>
-allstack handoff <run> --to claude-code
-allstack resume <run> --host codex
-allstack verify <run>
-allstack ship <run>
+allstack handoff <run> --epoch 1 --to claude-code
+allstack resume <run> --epoch 2
+allstack build <run> --epoch 2
+allstack handoff <run> --epoch 2 --to codex
+allstack resume <run> --epoch 3
+allstack verify <run> --epoch 3 --message "feat(example): implement accepted change"
+allstack ship <run> --epoch 3 --title "feat(example): implement accepted change"
 ```
 
-Starting a run must bind an existing authorized feature branch or prepare a concrete branch request. No branch is created implicitly. For host execution, adapters render the four workflow methods into each host's supported skill mechanism. Required capabilities are probed rather than inferred from the host's name. MCP is an optional transport for the same application services; the CLI is the first common interface.
+Starting a run binds an existing authorized feature branch. No branch is created implicitly. Commit and publish flags may be set only when trusted user instructions already grant that authority. Host adapters invoke real `codex exec` and `claude --print` commands with their ordinary permission modes; no permission-bypass flags are used. Host skill documents explain the managed boundary. MCP is a possible later transport, not a preview dependency.
 
-Every operation returns a machine-readable disposition and a human-readable next action. Unknown state, unavailable authority, missing dependencies, and failed verification have distinct outcomes. A zero-test invocation cannot satisfy a test requirement.
+Successful operations return serialized run state; failures return actionable errors and leave durable pending operation state where reconciliation is required. A zero-test invocation cannot satisfy a test requirement.
 
 ## Workflow state
 
@@ -80,15 +86,15 @@ stateDiagram-v2
     [*] --> planning
     planning --> building: plan recorded and required authority established
     building --> verifying: candidate frozen
-    verifying --> building: defect or candidate change
+    verifying --> building: checkpoint or handoff invalidates verification
     verifying --> shipping: exact commit and required gates verified
     shipping --> shipped: remote commit and PR read back
     shipped --> [*]
 ```
 
-Each stage separately carries an execution disposition: `ready`, `active`, `awaiting_authority`, `blocked`, or `outcome_unknown`. A handoff changes the active host and workspace epoch without resetting the stage. Terminal cancellation records a reason and preserves evidence.
+Each run records its active host, workspace epoch, revision, and optional pending operation. A handoff changes host and epoch; handing off a verifying run returns it to building and discards its verification. Pending operations block unrelated execution until reconciled. Richer disposition and terminal-cancellation contracts remain future work.
 
-Changing the workflow version, plan, gate requirements, candidate content, or relevant environment invalidates affected downstream evidence. A new revision records that invalidation; it never overwrites a past result. A host cannot advance a stage by writing a favorable summary.
+The workflow definition, plan/build method text, and verification policy are frozen by digest. Candidate content, exact commit, and the selected environment fingerprint bind final evidence. Changed inputs block shipping; checkpoint and handoff clear prior verification. A new revision records transitions without overwriting old results. A host cannot advance a stage by writing a favorable summary.
 
 ### Plan
 
@@ -125,9 +131,9 @@ Only after remote commit and PR head match does the run record `shipped`. Comple
 The first release makes cross-host a sequential transfer of control. It does not pass an active conversation or share a mutable checkout between hosts.
 
 1. Stop admission of new managed actions for the outgoing host. Wait for owned operations to finish, or mark unresolved external operations unknown.
-2. Retain an immutable workspace snapshot: base commit, tracked modifications, explicitly included untracked files, file modes, and content digests. Verify the source manifest before and after capture; concurrent changes invalidate the snapshot. Never include ignored files, credentials, tokens, or unrelated host data automatically. Explicitly required inputs need a safe inclusion decision.
+2. Retain an immutable workspace snapshot: base commit, tracked modifications, file modes, and content digests. New intended files require explicit `git add -- <path>` before capture; untracked files block the snapshot. Verify the source manifest before and after capture; concurrent changes invalidate the snapshot. Reject symlinks, path escapes, and recognized sensitive filenames. Enforce limits of 4 MiB per file, 64 MiB total, and 10,000 files. Filename checks do not detect every secret.
 3. Store snapshot bytes in a private local content-addressed artifact directory. Append a handoff receipt only after every referenced object is durable and readable. The run event records references and hashes, not source file bodies or raw transcripts.
-4. Increment the run's ownership epoch and invalidate the outgoing host's managed-action capability. Issue the incoming host a new scoped capability through local IPC, not through committed files or shared memory.
+4. Increment the run's ownership epoch under the store lock. Allstack rejects managed transitions using the old epoch. The incoming context contains the new epoch; there is no bearer capability or IPC identity exchange in this preview.
 5. Restore the retained snapshot into a different detached worktree. Verify repository identity, base commit availability, file containment, manifest completeness, modes, setup, and resulting content digests before admitting mutations.
 6. Reconcile Chronis ownership through its own API, then read it back. If transfer is incomplete, report it explicitly. Do not steal another active task claim. The run can remain readable while ownership repair blocks execution.
 7. Deliver a context bundle: request, plan revision, task reference, stage, evidence references, unresolved operations, repository policy, and active epoch. Prime recall adds source-linked context after authoritative state is loaded.
@@ -142,38 +148,43 @@ Use a distinct versioned namespace such as `allstack.workflow.v1.*`. The existin
 
 A workflow event binds schema version, run ID, operation ID, sequence, predecessor, workflow digest, workspace/repository scope, host epoch, and event-specific validated fields. Conditional transition checks and idempotent operation recovery happen at the coordinator boundary. Configure durable acknowledgement, validate retained history, and never infer order from timestamps alone.
 
-The append port must expose expected-revision semantics with persisted order across restart. A serial Rust actor prevents competing in-process writers but does not itself prove durable sequence recovery. Verify that behavior through the selected AllSource interface before implementation relies on it. Missing order, partial retained history, and mismatched duplicate operations fail closed. Retention must preserve run IDs and operation tombstones for the supported recovery lifetime.
+The append adapter compares the expected run revision under the exclusive store lock, writes through AllSource's embedded API, and reads back the resulting history. Revision order, predecessor hashes, operation identity, and transition validation guard replay. Locking is the local compare/write boundary; the embedded ingest interface is not an external compare-and-swap service. Missing order, partial retained history, and mismatched duplicate operations fail closed. The preview does not configure run-history retention or cross-machine writers.
 
-Chronis and Prime do not participate in a distributed transaction. Record intended component updates as durable workflow operations and reconcile them through their supported APIs. Re-read actual component state after uncertainty. Without a proven deterministic external identity or idempotency mechanism, do not retry an uncertain task/node create automatically. An unavailable Prime index can degrade semantic recall while leaving the authoritative run readable; an unconfirmed task claim blocks managed work.
+Chronis and Prime do not participate in a distributed transaction. Record intended component updates as durable workflow operations and reconcile them through their supported APIs. Chronis task recovery searches the exact run-linked task title and refuses duplicate matches; claims are read back with the expected host/epoch actor. Prime delivery records use a run/phase key and source reference. Recall performs local lexical matching over embedded graph nodes, not vector search. Prime is context only; it cannot certify execution or publication. A Prime open failure degrades recall without hiding authoritative run status. Plan indexing remains marked `memory_pending` until `recover` reconciles it; shipping reconciles outcome metadata before terminal completion. An unconfirmed Chronis claim blocks managed work.
 
 ## Authority and evidence
 
 Recorded events describe observations. A Chronis `approve`, a Prime node, an agent-written hash, or `change.approved` does not independently establish human authority.
 
-An authorization binding identifies the trusted instruction source, allowed operation, target repository/remote, candidate or plan revision, and relevant limits. Persist only the metadata needed to audit and invalidate that scope; credentials and bearer capabilities remain outside event payloads. Rebind when candidate or target changes. Repository and host policy may further restrict operations.
+The preview records `allow_commit` and `allow_publish` supplied at run start, together with repository, branch, remote, request, workflow, and policy scope. These flags rely on the trusted caller to obtain user permission; they are not authenticated approval records. Repository and host policy may further restrict operations. A richer externally verifiable authorization binding is future work.
 
 Guarantees apply to actions invoked through Allstack's managed boundary. Hooks and host instructions provide additional guardrails with explicit coverage limits. Documentation must not describe them as a sandbox or treat a bypassable check as mandatory enforcement.
 
 ## Processes, artifacts, and local operation
 
-A process Allstack spawns must be owned for its whole lifetime by a supervisor that can kill and reap it. Use one deadline across an operation and its attempts. No command may exceed 300 seconds; timeouts kill and reap the owned process tree and preserve diagnostic evidence. Lost acknowledgements of external side effects remain unknown.
+A process Allstack spawns must be owned for its whole lifetime by a supervisor that can kill and reap it. The guardian observes a pipe owned by the caller; caller death revokes child lifetime. Managed work has a maximum 290-second execution allowance with cleanup inside the 300-second ceiling. Timeouts terminate and reap the owned process group and preserve diagnostic evidence. Lost acknowledgements of external side effects remain unknown. Process-level death tests are required to establish this behavior.
 
 Run only one build or compile gate on the machine at a time. Detect external competing builds and report contention rather than killing other sessions. Local queueing has a bounded deadline. These requirements need actual process-level tests, including supervisor death, rather than only mocked subprocess calls.
 
-Keep runtime stores, credentials, worktrees, and raw evidence out of Git. Private artifacts remain local and are referenced by digest. Public delivery documents contain intentionally selected evidence with project-relative references; they must not expose private absolute paths, account data, source snapshots, or secrets. Export is explicit, schema-versioned, scope-checked, and excludes live capabilities. Cross-machine import is outside this release.
+Keep `.allstack/` runtime stores, credentials, worktrees, and raw evidence out of Git. Private artifacts remain local and are referenced by digest. Public delivery documents contain intentionally selected evidence with project-relative references; they must not expose private absolute paths, account data, source snapshots, or secrets. Cross-machine export/import is outside this release.
 
 ## Repository shape
 
 ```text
-workflows/delivery.toml       proposed versioned method definition
+workflows/delivery.toml       versioned workflow and method references
+workflows/methods/            frozen plan and build instructions
 docs/plans/                  design and implementation decisions
 docs/reference/              contracts and release acceptance
-crates/                      future Rust coordinator, CLI, and adapters
-hosts/                       future generated host skill packages
-fixtures/                    future synthetic repositories and failure journeys
+src/domain.rs                pure run types and transition validation
+src/application/             workflow orchestration and ports
+src/infrastructure/          AllSource, Chronis, Prime, host, Git, and process adapters
+src/presentation.rs          CLI commands and composition
+hosts/                       host skill guidance
+tests/                       executable source and integration contracts
+fixtures/                    journey definitions requiring real host execution
 ```
 
-Do not add empty executable packages or advertise installation before they work. Publish checksummed binaries and versioned host packages only after the complete supported flow passes. License original code under Apache-2.0 and retain separate notices for any future upstream reuse.
+Source installation is available for preview validation. Publish checksummed release binaries and versioned host packages only after the complete supported flow passes. License original code under Apache-2.0 and retain separate notices for any future upstream reuse.
 
 ## Implementation sequence
 
@@ -186,7 +197,7 @@ These are dependencies within one complete first release. None is a substitute f
 
 ## Evidence and current limits
 
-Source inspection on 24 October 2026 establishes reusable primitives, not installed-version compatibility or a working Allstack integration:
+The preview pins AllSource Core 0.26.1 with embedded and Prime features. Source inspection establishes the adapter contracts, not installed-version compatibility or successful authenticated host journeys:
 
 - [AllSource embedded engine](https://github.com/all-source-os/all-source/blob/main/apps/core/src/embedded/core.rs) exposes store lifecycle and query/ingest operations. Its public embedded `ingest` signature does not itself establish the expected-revision append contract required here.
 - [Chronis claim implementation](https://github.com/all-source-os/all-source/blob/main/apps/chronis/src/infrastructure/core_task_repo.rs) reads current task state and appends `workflow.claimed`; [projection](https://github.com/all-source-os/all-source/blob/main/apps/chronis/src/infrastructure/projection.rs) applies the first claim while open. This is not a run fencing or authenticated authority-transfer service.
@@ -194,4 +205,4 @@ Source inspection on 24 October 2026 establishes reusable primitives, not instal
 - [Existing agent-run evidence contract](https://github.com/all-source-os/all-source/blob/main/docs/plans/2026-09-27-agent-run-evidence-contract.md) describes internal capture/read behavior and explicitly leaves public boundaries and execution wrappers open.
 - [gstack](https://github.com/garrytan/gstack) supplies workflow reference material. Individual future reuse requires applicable notices.
 
-Source URLs track upstream and may change. Implementation must pin compatible component versions and retain tested contract fingerprints. No builds, host journeys, installed-artifact tests, or live publication workflow were executed to establish runtime support in this design scaffold.
+Source URLs track upstream and may change. Retain tested contract fingerprints and exact installed versions in release evidence. The implementation currently targets sequential hosts on one Unix machine, a `github.com` remote, and Cargo/nextest test execution summaries. It does not provide cross-machine transport, a host sandbox, authenticated IPC, vector recall, or automatic merge/deployment. Fixture definitions intentionally await actual host journeys. Acceptance claims remain open until retained execution evidence establishes them.
