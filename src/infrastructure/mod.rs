@@ -7,9 +7,11 @@ pub mod forge;
 pub mod gates;
 pub mod git;
 pub mod hosts;
+pub mod knowledge;
 pub mod memory;
 pub mod process;
 pub mod runtime;
+pub mod skills;
 pub mod store;
 pub mod workspace;
 

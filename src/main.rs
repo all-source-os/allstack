@@ -22,12 +22,18 @@ async fn main() {
         _ => {
             let cli = allstack::presentation::Cli::parse();
             (|| -> anyhow::Result<serde_json::Value> {
+                if let allstack::presentation::Action::Skills { skill } = &cli.command {
+                    return allstack::infrastructure::skills::inspect(skill.as_deref());
+                }
                 let repo = git::root(&cli.repository)?;
                 let scratch = if matches!(
                     cli.command,
                     allstack::presentation::Action::Init { .. }
                         | allstack::presentation::Action::Doctor { .. }
                         | allstack::presentation::Action::Catalog { .. }
+                        | allstack::presentation::Action::Skills { .. }
+                        | allstack::presentation::Action::Recall { .. }
+                        | allstack::presentation::Action::Remember { .. }
                 ) {
                     Some(Scratch::new()?)
                 } else {

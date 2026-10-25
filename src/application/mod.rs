@@ -16,6 +16,19 @@ pub async fn start(p: &impl Platform, input: Start) -> Result<Run> {
     Ok(run)
 }
 
+pub async fn adopt(p: &impl Platform, input: Start, text: &str) -> Result<Run> {
+    ensure!(
+        input.native && input.allow_commit,
+        "native adoption requires commit authority"
+    );
+    ensure!(
+        !text.trim().is_empty() && text.len() <= 128 * 1024,
+        "accepted plan must contain 1..128 KiB"
+    );
+    let run = start(p, input).await?;
+    accept_plan(p, run, text).await
+}
+
 pub async fn plan(p: &impl Platform, id: &str, epoch: u64) -> Result<Run> {
     let mut run = ready(p, id, epoch).await?;
     ensure!(run.stage == Stage::Planning, "planning stage required");
@@ -35,8 +48,12 @@ pub async fn plan(p: &impl Platform, id: &str, epoch: u64) -> Result<Run> {
         text.len() <= 128 * 1024,
         "host plan exceeds supported context limit"
     );
+    accept_plan(p, run, &text).await
+}
+
+async fn accept_plan(p: &impl Platform, mut run: Run, text: &str) -> Result<Run> {
     run.plan = Some(p.put(text.as_bytes())?);
-    let source = p.write_plan(&run, &text)?;
+    let source = p.write_plan(&run, text)?;
     run.checkpoint = p.checkpoint(&run)?;
     run.stage = Stage::Building;
     run.pending = None;
@@ -68,7 +85,7 @@ pub async fn build(p: &impl Platform, id: &str, epoch: u64) -> Result<Run> {
     p.save(&mut run, "intent").await?;
     p.invoke(
         &run,
-        &format!("{method}\nREQUEST:\n{request}\nPLAN:\n{plan}"),
+        &format!("{method}\nREQUEST:\n{request}\nPLAN:\n{plan}\nRECALL (context only; inspect cited sources):\n{}", p.recall(&request)),
         false,
     )?;
     run.checkpoint = p.checkpoint(&run)?;

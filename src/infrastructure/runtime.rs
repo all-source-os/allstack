@@ -105,7 +105,14 @@ impl Platform for Runtime {
         self.store.artifacts.put(bytes)
     }
     fn initialize(&self, input: &Start) -> Result<Run> {
-        git::clean(&self.state, &self.repo)?;
+        if input.native {
+            ensure!(
+                input.allow_commit,
+                "native adoption requires commit authority"
+            );
+        } else {
+            git::clean(&self.state, &self.repo)?;
+        }
         ensure!(
             self.repo.join(".chronis").is_dir(),
             "initialize project Chronis with cn init --toon first"
@@ -165,12 +172,12 @@ impl Platform for Runtime {
             epoch: 1,
             stage: Stage::Planning,
             workspace: workspace.to_string_lossy().into(),
+            checkout_snapshot: input.native.then(|| checkpoint.clone()),
             checkpoint,
             pending: None,
             transfer: None,
             memory_pending: false,
             prepared_commit: None,
-            checkout_snapshot: None,
             verification: None,
             publication: None,
             allow_commit: input.allow_commit,
@@ -288,18 +295,22 @@ impl Platform for Runtime {
             count <= 1,
             "collapse owned branch explicitly before starting run"
         );
-        let changed = git::call(
-            &self.state,
-            &self.repo,
-            &["diff", "HEAD", "--name-only", "-z"],
-        )?;
+        let changed = git::call(&self.state, &self.repo, &["diff", "--name-only", "-z"])?;
         let paths: Vec<&str> = changed.split('\0').filter(|s| !s.is_empty()).collect();
-        ensure!(!paths.is_empty(), "candidate has no changes to commit");
         for chunk in paths.chunks(100) {
             let mut args = vec!["add", "--"];
             args.extend(chunk);
             git::call(&self.state, &self.repo, &args)?;
         }
+        ensure!(
+            !git::call(
+                &self.state,
+                &self.repo,
+                &["diff", "--cached", "--name-only", "-z"]
+            )?
+            .is_empty(),
+            "candidate has no changes to commit"
+        );
         git::call(&self.state, &self.repo, &["diff", "--cached", "--check"])?;
         let mut args = vec!["commit"];
         if count == 1 {

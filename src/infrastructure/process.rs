@@ -78,7 +78,7 @@ pub fn run(mut spec: Spec) -> Result<Outcome> {
         .arg("__supervise")
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stderr(fs::File::create(spec.directory.join("supervisor-stderr"))?)
         .process_group(0)
         .spawn()?;
     let mut guardian = Guardian { child, input: None };

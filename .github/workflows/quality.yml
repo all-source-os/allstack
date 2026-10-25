@@ -37,6 +37,7 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
       - run: ${{ matrix.timeout }} -k 5 270 cargo +1.95 nextest run --locked
       - run: ${{ matrix.timeout }} -k 5 60 cargo +1.95 test --manifest-path fixtures/handoff/Cargo.toml --locked --tests
+      - run: ${{ matrix.timeout }} -k 5 60 cargo +1.95 test --manifest-path examples/spendcheck/Cargo.toml --locked --tests
       - if: matrix.os == 'macos-14'
         run: shasum -a256 target/debug/allstack > target/debug/allstack.sha256
       - if: matrix.os == 'macos-14'
@@ -64,5 +65,7 @@ jobs:
           tool: cargo-deny@0.19.2
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
       - run: timeout -k 5 60 cargo +1.95 fmt --all -- --check
+      - run: timeout -k 5 60 cargo +1.95 fmt --manifest-path examples/spendcheck/Cargo.toml -- --check
       - run: timeout -k 5 90 cargo +1.95 deny check
       - run: timeout -k 5 270 cargo +1.95 clippy --all-targets --locked -- -D warnings
+      - run: timeout -k 5 60 cargo +1.95 clippy --manifest-path examples/spendcheck/Cargo.toml --all-targets --locked -- -D warnings

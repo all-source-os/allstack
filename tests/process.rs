@@ -10,6 +10,14 @@ use std::{
 struct Owned(Child);
 impl Drop for Owned {
     fn drop(&mut self) {
+        self.0.stdin.take();
+        let until = Instant::now() + Duration::from_secs(3);
+        while Instant::now() < until {
+            if self.0.try_wait().ok().flatten().is_some() {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
         let _ = self.0.kill();
         let _ = self.0.wait();
     }
@@ -79,15 +87,16 @@ fn losing_owner_pipe_terminates_and_reaps_child() {
     );
     let mut child = start(dir.path(), vec!["/bin/sh".into(), "-c".into(), script], 5);
     let until = Instant::now() + Duration::from_secs(3);
-    while !dir.path().join("pid").exists() {
-        assert!(Instant::now() < until, "child never started");
+    let pid: i32 = loop {
+        match fs::read_to_string(dir.path().join("pid")) {
+            Ok(text) if text.ends_with('\n') => break text.trim().parse().unwrap(),
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => panic!("cannot read child PID: {error}"),
+        }
+        assert!(Instant::now() < until, "child PID was not published");
         std::thread::sleep(Duration::from_millis(10));
-    }
-    let pid: i32 = fs::read_to_string(dir.path().join("pid"))
-        .unwrap()
-        .trim()
-        .parse()
-        .unwrap();
+    };
     drop(child.0.stdin.take());
     let observed = result(&mut child, dir.path());
     assert!(observed.owner_lost);

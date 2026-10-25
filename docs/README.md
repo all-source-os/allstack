@@ -2,6 +2,10 @@
 
 ## Design
 
+- [2026-10-25: Spendcheck category plan](plans/2026-10-25-spendcheck-category-plan.md) — real Claude native shaping/planning output for the expense-report application change.
+
+- [2026-10-25: Realignment with gstack's specialist workflow model](plans/2026-10-25-gstack-realignment-design.md) — product direction proposal, retained ecosystem strengths, native skills, and application-level acceptance.
+
 - [2026-10-24: Selectable workflow catalog and bug fixes](plans/2026-10-24-workflow-catalog-design.md) — data-defined selection, retained-run compatibility, additive initialization, and authenticated bug-fix acceptance.
 
 - [2026-10-24: Installed CLI repository bootstrap](plans/2026-10-24-repository-bootstrap-design.md) — fresh-repository setup and installed-artifact verification.
@@ -9,6 +13,12 @@
 - [2026-10-24: Cross-host plan → build → verify → ship](plans/2026-10-24-cross-host-workflow-design.md) — product boundary, component ownership, state transitions, recovery, and implementation sequence.
 
 ## Reference
+
+- [Native skills and complete application verification](reports/2026-10-25-native-skills-application-verification.md) — installed interface, real Codex/Claude use, frozen expense acceptance, and durable publication evidence.
+
+- [Native specialist skills](reference/native-skills.md) — direct Codex/Claude methods, standalone project memory, and enrollment into durable delivery.
+- [Spendcheck application request](reference/native-application-request.md) — category-filtering behavior and frozen executable acceptance.
+- [Source-linked expense decision](reference/native-recall-context.md) — project Prime readback and retained plan digest for incoming-host source inspection.
 
 - [Workflow catalog and authenticated bug-fix verification](reports/2026-10-25-workflow-catalog-verification.md) — installed selection, legacy history, real host recovery, Prime repair, and retained proof identities.
 
@@ -36,3 +46,5 @@ The repository is an implementation preview. Source-level contracts and fixture 
 - [Allstack delivery plan 750de2d1-ec0b-4327-be96-4f0e1ba5c5f5](plans/allstack-750de2d1-ec0b-4327-be96-4f0e1ba5c5f5.md)
 
 - [Allstack delivery plan f2c4e41f-7616-4b34-aa56-4347fd1617fc](plans/allstack-f2c4e41f-7616-4b34-aa56-4347fd1617fc.md)
+
+- [Allstack delivery plan 9dc4c81f-73ca-4b92-89a2-be3c2ca44deb](plans/allstack-9dc4c81f-73ca-4b92-89a2-be3c2ca44deb.md)

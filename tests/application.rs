@@ -161,6 +161,7 @@ async fn build_flow(p: &Fake) -> Run {
     let run = application::start(
         p,
         Start {
+            native: false,
             workflow: "delivery".into(),
             request: "request".into(),
             policy: "policy".into(),
@@ -179,6 +180,61 @@ async fn build_flow(p: &Fake) -> Run {
     application::handoff(p, &run.id, 2, Host::Codex)
         .await
         .unwrap()
+}
+
+#[tokio::test]
+async fn native_candidate_enrolls_without_repeating_host_work() {
+    let p = Fake::new();
+    let run = application::adopt(
+        &p,
+        Start {
+            native: true,
+            workflow: "delivery".into(),
+            request: "request".into(),
+            policy: "policy".into(),
+            host: Host::Codex,
+            allow_commit: true,
+            allow_publish: true,
+        },
+        "Accepted native implementation plan",
+    )
+    .await
+    .unwrap();
+    assert_eq!(run.stage, allstack::domain::Stage::Building);
+    assert!(run.plan.is_some() && run.task.is_some());
+    assert!(!p.calls.borrow().iter().any(|c| c.starts_with("host:")));
+    application::verify(&p, &run.id, 1, "feat(example): ship native work")
+        .await
+        .unwrap();
+    application::ship(&p, &run.id, 1, "feat(example): ship native work")
+        .await
+        .unwrap();
+    assert!(p.published.get());
+}
+
+#[tokio::test]
+async fn native_adoption_refuses_missing_authority_or_empty_plan_before_side_effects() {
+    for (allowed, plan) in [(false, "accepted plan"), (true, " ")] {
+        let p = Fake::new();
+        assert!(
+            application::adopt(
+                &p,
+                Start {
+                    native: true,
+                    workflow: "delivery".into(),
+                    request: "request".into(),
+                    policy: "policy".into(),
+                    host: Host::Codex,
+                    allow_commit: allowed,
+                    allow_publish: true,
+                },
+                plan
+            )
+            .await
+            .is_err()
+        );
+        assert!(p.calls.borrow().is_empty());
+    }
 }
 
 #[tokio::test]
@@ -217,6 +273,7 @@ async fn failed_task_transfer_can_resume_without_reinvoking_host() {
     let run = application::start(
         &p,
         Start {
+            native: false,
             workflow: "delivery".into(),
             request: "request".into(),
             policy: "policy".into(),
@@ -351,6 +408,7 @@ async fn selected_bugfix_methods_follow_handoff_through_verified_publication() {
     let run = application::start(
         &p,
         Start {
+            native: false,
             workflow: "bugfix".into(),
             request: "request".into(),
             policy: "policy".into(),

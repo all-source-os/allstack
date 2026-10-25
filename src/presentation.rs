@@ -4,7 +4,7 @@ use crate::{
         ports::{Platform, Start},
     },
     domain::Host,
-    infrastructure::{bootstrap, catalog, git, process, runtime::Runtime},
+    infrastructure::{bootstrap, catalog, git, process, runtime::Runtime, skills},
 };
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
@@ -12,7 +12,10 @@ use serde_json::{Value, json};
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(version, about = "Durable cross-host delivery workflows")]
+#[command(
+    version,
+    about = "Native product and engineering skills with durable delivery"
+)]
 pub struct Cli {
     #[arg(short = 'C', long, global = true, default_value = ".")]
     pub repository: PathBuf,
@@ -22,6 +25,18 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Action {
+    Skills {
+        skill: Option<String>,
+    },
+    Current,
+    Remember {
+        #[arg(long, value_parser = ["decision", "review", "qa"])]
+        kind: String,
+        #[arg(long)]
+        source: String,
+        #[arg(long)]
+        summary: String,
+    },
     Catalog {
         workflow: Option<String>,
     },
@@ -30,6 +45,8 @@ pub enum Action {
         policy: String,
     },
     Init {
+        #[arg(long, conflicts_with = "profile")]
+        skills_only: bool,
         #[arg(long)]
         check: bool,
         #[arg(long, value_parser = ["rust"])]
@@ -47,6 +64,20 @@ pub enum Action {
         #[arg(long, default_value = "codex")]
         host: Host,
         #[arg(long)]
+        allow_commit: bool,
+        #[arg(long)]
+        allow_publish: bool,
+    },
+    Adopt {
+        #[arg(long)]
+        request: String,
+        #[arg(long)]
+        plan: String,
+        #[arg(long)]
+        policy: String,
+        #[arg(long, default_value = "codex")]
+        host: Host,
+        #[arg(long, required = true)]
         allow_commit: bool,
         #[arg(long)]
         allow_publish: bool,
@@ -114,13 +145,32 @@ pub enum Action {
 }
 
 pub async fn execute(cli: Cli) -> Result<Value> {
+    if let Action::Skills { skill } = &cli.command {
+        return skills::inspect(skill.as_deref());
+    }
     let repo = git::root(&cli.repository)?;
     match &cli.command {
         Action::Init {
+            skills_only,
             check,
             profile,
             policy,
-        } => return bootstrap::initialize(&repo, *check, profile.as_deref(), policy),
+        } => {
+            return if *skills_only {
+                bootstrap::install_skills(&repo, *check)
+            } else {
+                bootstrap::initialize(&repo, *check, profile.as_deref(), policy)
+            };
+        }
+        Action::Skills { skill } => return skills::inspect(skill.as_deref()),
+        Action::Remember {
+            kind,
+            source,
+            summary,
+        } => return crate::infrastructure::knowledge::remember(&repo, kind, source, summary).await,
+        Action::Recall { query } => {
+            return crate::infrastructure::knowledge::recall(&repo, query).await;
+        }
         Action::Doctor { policy } => return bootstrap::doctor(&repo, policy),
         Action::Catalog { workflow } => return catalog::inspect(&repo, workflow.as_deref()),
         _ => {}
@@ -135,7 +185,12 @@ pub async fn execute(cli: Cli) -> Result<Value> {
 
 async fn dispatch(p: &Runtime, action: Action) -> Result<Value> {
     let run = match action {
-        Action::Doctor { .. } | Action::Init { .. } | Action::Catalog { .. } => {
+        Action::Doctor { .. }
+        | Action::Init { .. }
+        | Action::Catalog { .. }
+        | Action::Skills { .. }
+        | Action::Remember { .. }
+        | Action::Recall { .. } => {
             unreachable!("setup commands dispatch before opening run storage")
         }
         Action::Start {
@@ -149,6 +204,7 @@ async fn dispatch(p: &Runtime, action: Action) -> Result<Value> {
             application::start(
                 p,
                 Start {
+                    native: false,
                     workflow,
                     request,
                     policy,
@@ -156,6 +212,32 @@ async fn dispatch(p: &Runtime, action: Action) -> Result<Value> {
                     allow_commit,
                     allow_publish,
                 },
+            )
+            .await?
+        }
+        Action::Current => return Ok(json!({"run":p.store.active().await?})),
+        Action::Adopt {
+            request,
+            plan,
+            policy,
+            host,
+            allow_commit,
+            allow_publish,
+        } => {
+            let root = crate::infrastructure::bootstrap_fs::Root::new(&p.repo)?;
+            let bytes = root.read(&plan)?.context("accepted plan missing")?;
+            application::adopt(
+                p,
+                Start {
+                    native: true,
+                    workflow: "delivery".into(),
+                    request,
+                    policy,
+                    host,
+                    allow_commit,
+                    allow_publish,
+                },
+                std::str::from_utf8(&bytes)?,
             )
             .await?
         }
@@ -184,7 +266,6 @@ async fn dispatch(p: &Runtime, action: Action) -> Result<Value> {
             }).collect::<Result<Vec<_>>>()?;
             return Ok(json!({"run":run,"gate_receipts":receipts}));
         }
-        Action::Recall { query } => return Ok(p.recall(&query)),
         Action::Resume { run, epoch } => {
             let run = p.load(&run).await?;
             run.check_epoch(epoch).map_err(anyhow::Error::msg)?;
