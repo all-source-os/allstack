@@ -449,3 +449,97 @@ fn installed_binary_initializes_real_chronis_and_executes_generated_policy() {
         }
     }
 }
+
+#[test]
+#[ignore = "requires actual Chronis and configured Git identity; remote discovery is a protocol fixture"]
+fn native_adoption_verifies_an_already_staged_deletion_with_real_git() {
+    let mut f = Fixture::new(true);
+    f.json(&["init", "--profile", "rust"]);
+    let bin = f._tmp.path().join("remote-protocol");
+    fs::create_dir(&bin).unwrap();
+    // Only network discovery is stubbed; index changes, commits, tasks, and gates execute normally.
+    fs::write(bin.join("git"), "#!/bin/sh\nif [ \"$1\" = ls-remote ]; then printf 'ref: refs/heads/trunk\\tHEAD\\n'; else exec /usr/bin/git \"$@\"; fi\n").unwrap();
+    fs::write(bin.join("gh"), "#!/bin/sh\nprintf '[]\\n'\n").unwrap();
+    for name in ["git", "gh"] {
+        fs::set_permissions(bin.join(name), fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    f.path = format!("{}:{}", bin.display(), f.path);
+    let git = |args: &[&str]| {
+        let mut command = Command::new("git");
+        command.args(args).current_dir(&f.repo).env("PATH", &f.path);
+        bounded(command)
+    };
+    fs::create_dir_all(f.repo.join("docs/plans")).unwrap();
+    fs::create_dir_all(f.repo.join("docs/requests")).unwrap();
+    fs::write(
+        f.repo.join("docs/plans/native.md"),
+        "Remove obsolete.md and preserve installed() behavior. Execute the project policy.",
+    )
+    .unwrap();
+    fs::write(
+        f.repo.join("docs/requests/native.md"),
+        "Remove the obsolete document without changing the application.",
+    )
+    .unwrap();
+    fs::write(f.repo.join("obsolete.md"), "obsolete").unwrap();
+    let ignore = fs::read_to_string(f.repo.join(".gitignore")).unwrap();
+    fs::write(f.repo.join(".gitignore"), format!("{ignore}\n/target/\n")).unwrap();
+    for args in [
+        vec![
+            "remote",
+            "add",
+            "origin",
+            "https://github.com/example/project.git",
+        ],
+        vec![
+            "add",
+            "--",
+            ".gitignore",
+            "Cargo.toml",
+            "Cargo.lock",
+            "src",
+            "tests",
+            "docs",
+            "workflows",
+            ".agents",
+            ".claude",
+            "obsolete.md",
+        ],
+        vec!["commit", "-m", "test(native): seed qualification"],
+        vec!["update-ref", "refs/remotes/origin/trunk", "HEAD"],
+    ] {
+        let (ok, out, err) = git(&args);
+        assert!(ok, "{args:?}: {out}\n{err}");
+    }
+    fs::remove_file(f.repo.join("obsolete.md")).unwrap();
+    assert!(git(&["add", "--", "obsolete.md"]).0);
+    assert!(git(&["diff", "--name-only"]).1.is_empty());
+    let run = f.json(&[
+        "adopt",
+        "--request",
+        "docs/requests/native.md",
+        "--plan",
+        "docs/plans/native.md",
+        "--policy",
+        "workflows/verification.toml",
+        "--allow-commit",
+    ]);
+    let verified = f.json(&[
+        "verify",
+        run["id"].as_str().unwrap(),
+        "--epoch",
+        "1",
+        "--message",
+        "feat(example): remove obsolete document",
+    ]);
+    assert_eq!(verified["stage"], "verifying");
+    assert!(!git(&["show", "HEAD:obsolete.md"]).0);
+    assert_eq!(
+        git(&["rev-list", "--count", "origin/trunk..HEAD"]).1.trim(),
+        "1"
+    );
+    assert_eq!(
+        verified["verification"]["commit"].as_str().unwrap(),
+        git(&["rev-parse", "HEAD"]).1.trim()
+    );
+}

@@ -1,0 +1,45 @@
+command_seconds = 240
+environment = ["PATH", "RUSTUP_TOOLCHAIN", "RUSTFLAGS", "CARGO_TARGET_DIR", "RUSTC_WRAPPER"]
+
+[[gates]]
+name = "toolkit format"
+argv = ["cargo", "fmt", "--all", "--", "--check"]
+
+[[gates]]
+name = "native skills and runtime"
+argv = ["cargo", "nextest", "run", "--locked", "--offline"]
+test = true
+compile = true
+success_marker = "tests run:"
+
+[[gates]]
+name = "toolkit lint"
+argv = ["cargo", "clippy", "--all-targets", "--locked", "--offline", "--", "-D", "warnings"]
+compile = true
+
+[[gates]]
+name = "expense application"
+argv = ["cargo", "test", "--manifest-path", "examples/spendcheck/Cargo.toml", "--locked", "--offline", "--tests"]
+test = true
+compile = true
+success_marker = "6 passed"
+
+[[gates]]
+name = "application lint"
+argv = ["cargo", "clippy", "--manifest-path", "examples/spendcheck/Cargo.toml", "--all-targets", "--locked", "--offline", "--", "-D", "warnings"]
+compile = true
+
+[[gates]]
+name = "application format"
+argv = ["cargo", "fmt", "--manifest-path", "examples/spendcheck/Cargo.toml", "--", "--check"]
+
+[[gates]]
+name = "existing host fixtures"
+argv = ["cargo", "test", "--manifest-path", "fixtures/handoff/Cargo.toml", "--locked", "--offline", "--tests"]
+test = true
+compile = true
+success_marker = "2 passed"
+
+[[gates]]
+name = "source whitespace"
+argv = ["git", "diff", "--check", "origin/main", "HEAD"]

@@ -151,6 +151,15 @@ fn plan(root: &Root, profile: Option<&str>, policy: &str) -> Result<(Vec<Change>
         .iter()
         .map(|(path, text)| managed(root, path, text.as_bytes(), false))
         .collect::<Result<Vec<_>>>()?;
+    for (path, text) in super::skills::resources() {
+        files.push(managed(root, &path, text.as_bytes(), false)?);
+    }
+    files.push(managed(
+        root,
+        "docs/reference/allstack-skills.md",
+        include_bytes!("../../templates/native-skills.md"),
+        false,
+    )?);
     ensure!(
         !files.iter().any(|f| f.path == policy)
             && ![".gitignore", "docs/README.md", "Cargo.toml", "Cargo.lock"].contains(&policy)
@@ -183,6 +192,7 @@ fn plan(root: &Root, profile: Option<&str>, policy: &str) -> Result<(Vec<Change>
         &[
             INDEX,
             "- [Allstack workflow catalog](reference/allstack-catalog.md)",
+            "- [Allstack native skills](reference/allstack-skills.md)",
         ],
         "# Documentation\n\n",
     )?);
@@ -250,6 +260,63 @@ fn repair_overridden_ignores(scratch: &Scratch, repo: &Path, files: &mut [Change
         }
     }
     Ok(())
+}
+
+pub fn install_skills(repo: &Path, check: bool) -> Result<Value> {
+    let root = Root::new(repo)?;
+    let mut files = super::skills::resources()
+        .into_iter()
+        .map(|(path, text)| managed(&root, &path, text.as_bytes(), false))
+        .collect::<Result<Vec<_>>>()?;
+    files.push(managed(
+        &root,
+        "docs/reference/allstack-skills.md",
+        include_bytes!("../../templates/native-skills.md"),
+        false,
+    )?);
+    files.push(append(
+        &root,
+        "docs/README.md",
+        &["- [Allstack native skills](reference/allstack-skills.md)"],
+        "# Documentation\n\n",
+    )?);
+    files.push(append(&root, ".gitignore", IGNORE, "")?);
+    let conflicts: Vec<_> = files
+        .iter()
+        .filter(|f| f.status == "conflict")
+        .map(|f| f.path.clone())
+        .collect();
+    let report = json!({"skills_only":true,"check":check,"ready":conflicts.is_empty(),"applied":!check && conflicts.is_empty(),"files":files,"conflicts":conflicts,"stores_opened":false});
+    if check {
+        return Ok(report);
+    }
+    ensure!(
+        conflicts.is_empty(),
+        "native skill preflight failed: {report}"
+    );
+    for change in &files {
+        match change.status.as_str() {
+            "created" => root.create(&change.path, &change.bytes)?,
+            "appended" => root.append(
+                &change.path,
+                change.before.as_deref().unwrap(),
+                &change.bytes[change.before.as_ref().unwrap().len()..],
+            )?,
+            _ => ensure!(
+                root.read(&change.path)? == change.before,
+                "destination changed: {}",
+                change.path
+            ),
+        }
+    }
+    for change in &files {
+        ensure!(
+            root.read(&change.path)?.as_deref() == Some(&change.bytes),
+            "native skill readback differs: {}",
+            change.path
+        );
+    }
+    Ok(report)
 }
 
 pub fn initialize(repo: &Path, check: bool, profile: Option<&str>, policy: &str) -> Result<Value> {

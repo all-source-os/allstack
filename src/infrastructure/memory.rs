@@ -24,6 +24,7 @@ impl Memory {
             .0
             .nodes_by_type("delivery")
             .into_iter()
+            .chain(self.0.nodes_by_type("knowledge"))
             .filter_map(|node| {
                 let text = node.properties.to_string().to_lowercase();
                 let score = terms.iter().filter(|t| text.contains(t.as_str())).count();
@@ -33,6 +34,44 @@ impl Memory {
         nodes.sort_by_key(|(score, _)| std::cmp::Reverse(*score));
         json!({"retrieval":"lexical-prime-nodes", "authority":"context-only", "nodes": nodes.into_iter().take(5).map(|(_,n)| n).collect::<Vec<_>>()})
     }
+    pub async fn remember(
+        &self,
+        kind: &str,
+        source: &str,
+        source_digest: &str,
+        summary: &str,
+    ) -> Result<Value> {
+        let key = super::digest(&serde_json::to_vec(&(
+            kind,
+            source,
+            source_digest,
+            summary,
+        ))?);
+        let props = json!({"name":format!("{kind} {source}"),"domain":"allstack","key":key,
+            "kind":kind,"source":source,"source_digest":source_digest,"summary":summary});
+        let bound = || {
+            self.0
+                .nodes_by_type("knowledge")
+                .into_iter()
+                .filter(|n| n.properties["key"] == key)
+                .collect::<Vec<_>>()
+        };
+        let existing = bound();
+        ensure!(
+            existing.len() <= 1 && existing.first().is_none_or(|n| n.properties == props),
+            "knowledge binding needs reconciliation"
+        );
+        if existing.is_empty() {
+            self.0.add_node("knowledge", props.clone()).await?;
+        }
+        let actual = bound();
+        ensure!(
+            actual.len() == 1 && actual[0].properties == props,
+            "knowledge write lacks complete readback"
+        );
+        Ok(json!({"node":actual[0],"store":"local-project-prime","authority":"context-only"}))
+    }
+
     pub async fn record(
         &self,
         run: &str,

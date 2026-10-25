@@ -95,6 +95,33 @@ impl Store {
             .context("run not found")
     }
 
+    pub async fn active(&self) -> Result<Option<Run>> {
+        let page = self.core.query_page(Query::new().limit(10001)).await?;
+        ensure!(
+            !page.has_more && page.total_count == page.events.len(),
+            "run discovery exceeds supported history; select an explicit run"
+        );
+        let mut ids = std::collections::BTreeSet::new();
+        for event in page.events {
+            if event.event_type.starts_with("allstack.workflow.v1.") {
+                let event: Event = serde_json::from_value(event.payload)?;
+                ids.insert(event.run.id);
+            }
+        }
+        let mut active = Vec::new();
+        for id in ids {
+            let run = self.load(&id).await?;
+            if run.stage != crate::domain::Stage::Shipped {
+                active.push(run);
+            }
+        }
+        ensure!(
+            active.len() <= 1,
+            "multiple active runs; select an explicit run from status/history"
+        );
+        Ok(active.pop())
+    }
+
     pub async fn save(&self, run: &mut Run, kind: &str) -> Result<()> {
         let events = self.history(&run.id).await?;
         let last = events.last();

@@ -1,8 +1,8 @@
 # Allstack
 
-Plan, build, verify, and ship across coding agents, with durable history and evidence tied to the delivered change.
+Opinionated product and engineering skills for Codex and Claude Code, backed by durable project memory and delivery evidence.
 
-**Status: implementation preview.** The Rust CLI implements local run storage, task coordination, host invocation, immutable handoffs, verification, and GitHub publication. Source-level support is distinct from release proof: use the [acceptance scenarios](docs/reference/release-acceptance.md) to audit actual host journeys, interruptions, and delivered artifacts.
+**Status: implementation preview.** Invoke native skills to shape an idea, plan a change, review an existing branch, exercise an application, or ship authorized work. AllSource, Chronis, and Prime support durable continuation underneath. Source support and real-host acceptance are tracked separately in the [documentation](docs/README.md).
 
 The [verification report](docs/reports/2026-10-24-cross-host-workflow-verification.md) records authenticated host execution, delivered forward-run evidence, reverse handoff observations, and supported limits. Private gate receipts remain readable through `allstack evidence <run>`; source-linked Prime context through `allstack recall <query>`.
 
@@ -10,11 +10,37 @@ Allstack embeds [AllSource Core](https://github.com/all-source-os/all-source) 0.
 
 ## First complete job
 
-A developer plans a change in one host, continues implementation in another, resumes after an interruption, verifies the exact resulting commit, and publishes one reviewable pull request. The next host recovers the plan, workspace snapshot, evidence, and outstanding actions without copying a conversation transcript.
+A developer shapes an application change, reviews its architecture, implements it, checks concrete failure risks, exercises the real user flow, and publishes one verified PR. Each specialist also works independently. An explicit host change preserves the accepted plan, candidate, ownership, and outstanding checks without copying a conversation transcript.
 
 In this workflow, **ship means a verified commit pushed to a feature branch and an open pull request**. Merge and deployment are separate actions.
 
-## Component boundaries
+## Start in your coding host
+
+Install the CLI from a reviewed checkout with Rust 1.95 or later:
+
+```sh
+cargo install --path . --locked
+allstack -C /path/to/project init --skills-only --check
+allstack -C /path/to/project init --skills-only
+```
+
+Then invoke a skill by name. Codex accepts `$allstack-plan`; Claude Code accepts `/allstack-plan`. Existing sessions may need reopening for skill discovery.
+
+| Skill | Complete job |
+| --- | --- |
+| `allstack-shape` | Challenge demand, alternatives, and the outcome worth building. |
+| `allstack-plan` | Resolve architecture, failure behavior, compatibility, and acceptance. |
+| `allstack-review` | Find evidenced defects in an existing branch, diff, or PR. |
+| `allstack-qa` | Exercise the actual UI, API, CLI, or job using available tools. |
+| `allstack-ship` | Verify and publish the authorized change through managed delivery. |
+| `allstack-recall` | Recover relevant project knowledge and inspect its sources. |
+| `allstack-handoff` | Explicitly continue an active delivery in another host. |
+
+Skills-only setup needs no Rust project, Chronis executable, task, or delivery run. Independent shaping, planning, review, and QA use the native host's tools and permissions. Shared original methods live in [skills/](skills); Rust packages them for both hosts with capability overlays. `allstack skills` inspects the bundled interface without opening stores.
+
+See the [native-skills guide](docs/reference/native-skills.md) for installation, standalone memory, and enrollment into durable shipping. The [Spendcheck application](examples/spendcheck) demonstrates a concrete expense-report change through these methods.
+
+## Ecosystem underneath
 
 | Component | Owns |
 | --- | --- |
@@ -27,12 +53,11 @@ In this workflow, **ship means a verified commit pushed to a feature branch and 
 
 Workflow methods and repository policies are versioned data. Generic mechanics belong in Rust. Optional browser, research, evaluation, and hosted-service integrations follow after the core workflow is proven.
 
-## Use the preview
+## Durable delivery and recovery
 
-Install from a reviewed checkout with Rust 1.95 or later:
+For managed delivery, initialize a real project policy and Chronis:
 
 ```sh
-cargo install --path . --locked
 allstack --help
 allstack -C /path/to/target-repository init --check --profile rust
 allstack -C /path/to/target-repository init --profile rust
@@ -47,7 +72,7 @@ The [installed-bootstrap verification report](docs/reports/2026-10-24-repository
 
 The [fresh-repository delivery report](docs/reports/2026-10-24-fresh-repository-delivery-verification.md) extends that proof through authenticated Codex → Claude Code → Codex handoffs, five executed acceptance tests, and a newly published [example PR](https://github.com/all-source-os/allstack-example/pull/1).
 
-Starting a run needs an existing authorized feature branch, a GitHub `origin`, clean indexed inputs, and a frozen verification policy. Both coding hosts need their normal authentication and permissions. `doctor` reads setup and executable availability without opening mutable run stores; it does not authenticate hosts. Follow the [CLI guide](docs/reference/cli.md) for setup and the complete Codex → Claude Code → Codex sequence.
+Managed delivery needs an authorized live feature branch, a GitHub `origin`, and an explicit verification policy. Use `start` for a clean managed journey or `adopt` to enroll completed native work with its existing accepted plan. `current` discovers the active job behind the skill interface. Both coding hosts retain normal authentication and permissions. `doctor` probes availability without authenticating them. The [CLI guide](docs/reference/cli.md) documents the underlying recovery protocol.
 
 Select `delivery` for an accepted change or `bugfix` for evidence-led diagnosis and repair with regression coverage. Pass `start --workflow bugfix`; omitting the option retains `delivery`. Both share the same durable lifecycle and publication gates. See the [workflow catalog](docs/reference/workflow-catalog.md).
 
@@ -60,6 +85,7 @@ Snapshots require explicit `git add -- <path>` for new files. They reject symlin
 ## Documentation
 
 - [Documentation index](docs/README.md)
+- [Native skills](docs/reference/native-skills.md)
 - [Cross-host workflow design](docs/plans/2026-10-24-cross-host-workflow-design.md)
 - [Release acceptance scenarios](docs/reference/release-acceptance.md)
 - [CLI and recovery guide](docs/reference/cli.md)
@@ -72,7 +98,7 @@ Acceptance checkboxes remain open until retained evidence establishes each claim
 
 ## Relationship to gstack
 
-[gstack](https://github.com/garrytan/gstack) demonstrates opinionated planning, review, QA, and delivery workflows. Allstack uses that workflow shape as a reference and focuses its first release on durable cross-host continuation. Allstack's workflow text is original. Any future reuse must retain the applicable upstream and third-party notices.
+[gstack](https://github.com/garrytan/gstack) demonstrates opinionated planning, review, QA, and delivery workflows. Allstack follows that specialist interaction model with original methods. AllSource, Chronis, and Prime provide durable history, ownership, and source-linked continuation underneath the native skills. Any future reuse must retain the applicable upstream and third-party notices.
 
 ## License
 
