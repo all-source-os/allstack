@@ -310,6 +310,50 @@ fn check_mode_never_opens_existing_chronis_engine() {
 }
 
 #[test]
+fn tracked_chronis_sync_export_survives_initialization_and_doctor() {
+    let f = Fixture::new(false);
+    fs::create_dir_all(f.repo.join(".chronis/sync")).unwrap();
+    fs::write(f.repo.join(".chronis/protocol"), "fixture").unwrap();
+    let export = f.repo.join(".chronis/sync/events.jsonl");
+    fs::write(&export, "export fixture\n").unwrap();
+    let mut stage = Command::new("git");
+    stage
+        .current_dir(&f.repo)
+        .args(["add", "-f", ".chronis/sync/events.jsonl"]);
+    let (ok, _, error) = bounded(stage);
+    assert!(ok, "{error}");
+    assert_eq!(f.json(&["init", "--profile", "rust"])["ready"], true);
+    assert_eq!(f.json(&["doctor"])["setup_ready"], true);
+    assert_eq!(fs::read_to_string(export).unwrap(), "export fixture\n");
+}
+
+#[test]
+fn tracked_private_state_still_blocks_setup_with_sync_export_present() {
+    for private in [
+        ".chronis/events.jsonl",
+        ".chronis/sync/other.jsonl",
+        ".prime/store",
+        ".allstack/receipt",
+    ] {
+        let f = Fixture::new(false);
+        for name in [".chronis/sync/events.jsonl", private] {
+            let path = f.repo.join(name);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, "fixture\n").unwrap();
+            let mut stage = Command::new("git");
+            stage.current_dir(&f.repo).args(["add", "-f", "--", name]);
+            let (ok, _, error) = bounded(stage);
+            assert!(ok, "{error}");
+        }
+        let before = f.fingerprint();
+        let (ok, _, error) = f.run(&["init", "--profile", "rust"]);
+        assert!(!ok, "accepted tracked private state: {private}");
+        assert!(error.contains("private store files are tracked"), "{error}");
+        assert_eq!(f.fingerprint(), before);
+    }
+}
+
+#[test]
 fn conflicts_and_missing_profile_fail_before_chronis_or_file_writes() {
     let f = Fixture::new(false);
     let before = f.fingerprint();

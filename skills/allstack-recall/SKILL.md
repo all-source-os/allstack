@@ -9,6 +9,8 @@ Turn the user's question into a specific query. Use connected project Prime tool
 
 Inspect the cited source for every result that affects the recommendation. A retained `source_digest` identifies the file version remembered; compare current bytes before carrying an old decision forward. If a source changed or disappeared, label the result historical and inspect its successor. Missing search results do not prove the project never made the decision.
 
+An explicit absent-store result is a verification limit. Continue from the supplied indexed plan and relevant project source; do not search the toolkit's implementation to invent missing memory or create a replacement store merely to satisfy recall.
+
 Distinguish proposals, accepted decisions, observed outcomes, and actual current state. Query AllSource workflow state, Chronis ownership, or GitHub publication through their own tools when that is what the question asks. Prime context cannot establish those facts or grant authority.
 
 Return the relevant decision, why it applies, source path, and any conflicting or superseding evidence. Do not dump unrelated memory. Preserve useful accepted knowledge through `allstack remember --kind decision|review|qa --source <indexed-doc> --summary <concise-result>` when requested or within an authorized documentation workflow. Never store secrets, proprietary source, or full file contents.

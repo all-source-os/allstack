@@ -206,6 +206,18 @@ fn call(scratch: &Scratch, repo: &Path, argv: &[&str]) -> Result<String> {
     process::checked(&scratch.0, repo, argv)
 }
 
+fn tracked_private_state(scratch: &Scratch, repo: &Path) -> Result<bool> {
+    let tracked = call(
+        scratch,
+        repo,
+        &["git", "ls-files", "--", ".allstack", ".chronis", ".prime"],
+    )?;
+    // Chronis intentionally versions this portable export for Git-backed sync.
+    Ok(tracked
+        .lines()
+        .any(|path| path != ".chronis/sync/events.jsonl"))
+}
+
 fn repair_overridden_ignores(scratch: &Scratch, repo: &Path, files: &mut [Change]) -> Result<()> {
     let outcome = process::run(process::Spec {
         argv: [
@@ -327,12 +339,7 @@ pub fn initialize(repo: &Path, check: bool, profile: Option<&str>, policy: &str)
     if call(&scratch, repo, &["cn", "--version", "--toon"]).is_err() {
         missing.push("Chronis cn executable unavailable".into());
     }
-    let tracked = call(
-        &scratch,
-        repo,
-        &["git", "ls-files", "--", ".allstack", ".chronis", ".prime"],
-    )?;
-    if !tracked.is_empty() {
+    if tracked_private_state(&scratch, repo)? {
         missing.push("private store files are tracked; resolve before initialization".into());
     }
     let chronis_exists = root.directory(".chronis")?;
@@ -462,12 +469,7 @@ pub fn doctor(repo: &Path, policy: &str) -> Result<Value> {
     if check_ignored(&scratch, repo).is_err() {
         missing.push("private stores are not all ignored".into());
     }
-    let tracked = call(
-        &scratch,
-        repo,
-        &["git", "ls-files", "--", ".allstack", ".chronis", ".prime"],
-    )?;
-    if !tracked.is_empty() {
+    if tracked_private_state(&scratch, repo)? {
         missing.push("private store files are tracked".into());
     }
     let tools: Vec<_> = ["codex", "claude", "cn", "git", "gh", "cargo", "rustc"].iter().map(|name| {

@@ -29,6 +29,7 @@ async fn main() {
                 let scratch = if matches!(
                     cli.command,
                     allstack::presentation::Action::Init { .. }
+                        | allstack::presentation::Action::Check { .. }
                         | allstack::presentation::Action::Doctor { .. }
                         | allstack::presentation::Action::Catalog { .. }
                         | allstack::presentation::Action::Skills { .. }

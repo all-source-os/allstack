@@ -8,6 +8,8 @@ Use one Unix machine with Git, GitHub CLI, Rust/Cargo, Chronis `cn`, Codex CLI, 
 
 Install from the reviewed Allstack checkout with `cargo install --path . --locked`. The Rust package requires Rust 1.95 or later. `allstack --help` and each subcommand's `--help` expose the installed interface.
 
+Native command evidence is available without managed delivery: `allstack check --expect-exit 4 --seconds 120 -- /absolute/program arguments`. Omit `--expect-exit` to expect zero; `--input prompt.txt` supplies up to 128 KiB of UTF-8 stdin. The 2..270 second deadline includes source metadata and execution. Ignore `.allstack/` first. JSON returns the receipt location, actual outcome, executable identity, source checkout, and separate raw stream paths/digests. A matching expected nonzero exit succeeds; timeout, signal, changed executable, spawn failure, and unexpected status fail and retain a private receipt. No task, run, or Prime store is created. A binary digest identifies observed bytes; establish its source build independently.
+
 Put the installed executable directory on the `PATH` inherited by both coding hosts. A custom `cargo install --root <prefix>` needs `<prefix>/bin` there as well. Keep the selected policy environment stable from verification through shipping. The [fresh-repository verification](../reports/2026-10-24-fresh-repository-delivery-verification.md) records the complete authenticated journey and actual destination readbacks.
 
 Prepare the target repository before starting:
@@ -125,3 +127,7 @@ Verification records the prepared commit so a changed checkpoint can be committe
 `.allstack/` holds AllSource events, Prime graph state, object snapshots, run worktrees, and process receipts. It is local-only and must remain ignored. Read component stores through their APIs or Allstack commands, never by scraping WAL or storage segments.
 
 Retain tool versions, run IDs, exact commits, actual test counts and outputs, interruption points, remote/PR readbacks, and private artifact digests when validating the release. Publish only deliberately reviewed evidence in indexed repository documents. Fixture definitions and source tests do not establish that authenticated Codex and Claude Code completed the real journey.
+
+Initialization and doctor permit Chronis’s tracked `.chronis/sync/events.jsonl` Git sync export. Other tracked files under `.chronis/`, `.prime/`, and `.allstack/` remain rejected as private state. Existing exports are preserved.
+
+Publishing changes under `.github/workflows/` requires GitHub workflow-write authority. A repository-scoped OAuth token can read the repository and create a PR while still failing the Git push for those files. Use an existing authorized SSH identity for the same repository, or a token with the required scope. Preserve the verified commit and reconcile the actual remote branch before retrying publication.

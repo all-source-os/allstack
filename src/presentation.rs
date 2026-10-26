@@ -25,6 +25,17 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Action {
+    /// Capture a supervised command with an expected exit and private evidence.
+    Check {
+        #[arg(long, default_value_t = 0)]
+        expect_exit: u8,
+        #[arg(long, default_value_t = 120, value_parser = clap::value_parser!(u64).range(2..=270))]
+        seconds: u64,
+        #[arg(long)]
+        input: Option<PathBuf>,
+        #[arg(last = true, required = true)]
+        argv: Vec<String>,
+    },
     Skills {
         skill: Option<String>,
     },
@@ -163,6 +174,20 @@ pub async fn execute(cli: Cli) -> Result<Value> {
             };
         }
         Action::Skills { skill } => return skills::inspect(skill.as_deref()),
+        Action::Check {
+            expect_exit,
+            seconds,
+            input,
+            argv,
+        } => {
+            return crate::infrastructure::checks::check(
+                &repo,
+                argv,
+                *expect_exit,
+                *seconds,
+                input.as_deref(),
+            );
+        }
         Action::Remember {
             kind,
             source,
@@ -186,6 +211,7 @@ pub async fn execute(cli: Cli) -> Result<Value> {
 async fn dispatch(p: &Runtime, action: Action) -> Result<Value> {
     let run = match action {
         Action::Doctor { .. }
+        | Action::Check { .. }
         | Action::Init { .. }
         | Action::Catalog { .. }
         | Action::Skills { .. }
