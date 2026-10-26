@@ -34,7 +34,45 @@ pub fn contained(root: &Path, relative: &str) -> Result<PathBuf> {
     Ok(current)
 }
 
-fn manifest(state: &Path, cwd: &Path) -> Result<BTreeMap<String, (Vec<u8>, bool)>> {
+#[derive(PartialEq, Eq)]
+struct Manifest {
+    files: BTreeMap<String, (Vec<u8>, bool)>,
+    preserved: BTreeMap<String, String>,
+}
+
+fn guarded_path(name: &str) -> bool {
+    name.to_lowercase().split('/').any(|p| {
+        p == ".env"
+            || p.starts_with(".env.")
+            || p == "credentials.json"
+            || p == "id_rsa"
+            || p.ends_with(".pem")
+    })
+}
+
+fn base_blob(state: &Path, cwd: &Path, base: &str, name: &str) -> Result<String> {
+    contained(cwd, name)?;
+    git::call(state, cwd, &["diff", "--quiet", base, "--", name])
+        .with_context(|| format!("sensitive path must match tracked base: {name}"))?;
+    let expected = git::call(
+        state,
+        cwd,
+        &["rev-parse", "--verify", &format!("{base}:{name}")],
+    )
+    .with_context(|| format!("sensitive path must exist in tracked base: {name}"))?;
+    let actual = git::call(
+        state,
+        cwd,
+        &["hash-object", &format!("--path={name}"), "--", name],
+    )?;
+    ensure!(
+        actual == expected,
+        "sensitive path must match tracked base: {name}"
+    );
+    Ok(expected)
+}
+
+fn manifest(state: &Path, cwd: &Path) -> Result<Manifest> {
     let tracked = git::call(state, cwd, &["ls-files", "-z"])?;
     let others = git::call(
         state,
@@ -46,17 +84,17 @@ fn manifest(state: &Path, cwd: &Path) -> Result<BTreeMap<String, (Vec<u8>, bool)
         "untracked files require explicit git add before checkpoint; never snapshot them implicitly"
     );
     let mut result = BTreeMap::new();
+    let mut preserved = BTreeMap::new();
     let mut total = 0;
     for name in tracked.split('\0').filter(|s| !s.is_empty()) {
-        let lower = name.to_lowercase();
         ensure!(
-            !lower.split('/').any(|p| p == ".env"
-                || p.starts_with(".env.")
-                || p == "credentials.json"
-                || p == "id_rsa"
-                || p.ends_with(".pem")),
-            "sensitive path requires removal from tracked snapshot: {name}"
+            result.len() + preserved.len() < 10000,
+            "snapshot exceeds supported bounds"
         );
+        if guarded_path(name) {
+            preserved.insert(name.to_string(), base_blob(state, cwd, "HEAD", name)?);
+            continue;
+        }
         let path = contained(cwd, name)?;
         if !path.exists() {
             continue;
@@ -68,7 +106,7 @@ fn manifest(state: &Path, cwd: &Path) -> Result<BTreeMap<String, (Vec<u8>, bool)
         );
         total += meta.len();
         ensure!(
-            total <= 64 * 1024 * 1024 && result.len() < 10000,
+            total <= 64 * 1024 * 1024,
             "snapshot exceeds supported bounds"
         );
         result.insert(
@@ -76,13 +114,17 @@ fn manifest(state: &Path, cwd: &Path) -> Result<BTreeMap<String, (Vec<u8>, bool)
             (fs::read(path)?, meta.permissions().mode() & 0o111 != 0),
         );
     }
-    Ok(result)
+    Ok(Manifest {
+        files: result,
+        preserved,
+    })
 }
 
 pub fn capture(state: &Path, cwd: &Path, artifacts: &Artifacts) -> Result<String> {
     let base = git::call(state, cwd, &["rev-parse", "HEAD"])?;
     let before = manifest(state, cwd)?;
     let files = before
+        .files
         .iter()
         .map(|(name, (bytes, executable))| {
             Ok((
@@ -98,7 +140,11 @@ pub fn capture(state: &Path, cwd: &Path, artifacts: &Artifacts) -> Result<String
         manifest(state, cwd)? == before && git::call(state, cwd, &["rev-parse", "HEAD"])? == base,
         "workspace changed during checkpoint"
     );
-    artifacts.put(&serde_json::to_vec(&Snapshot { base, files })?)
+    artifacts.put(&serde_json::to_vec(&Snapshot {
+        base,
+        files,
+        preserved: before.preserved,
+    })?)
 }
 
 pub fn read_snapshot(artifacts: &Artifacts, key: &str) -> Result<Snapshot> {
@@ -107,14 +153,28 @@ pub fn read_snapshot(artifacts: &Artifacts, key: &str) -> Result<Snapshot> {
 
 pub fn materialize(state: &Path, cwd: &Path, artifacts: &Artifacts, key: &str) -> Result<()> {
     let snapshot = read_snapshot(artifacts, key)?;
+    for (name, blob) in &snapshot.preserved {
+        ensure!(
+            guarded_path(name) && !snapshot.files.contains_key(name),
+            "invalid preserved path"
+        );
+        ensure!(
+            base_blob(state, cwd, &snapshot.base, name)? == *blob,
+            "preserved base identity changed: {name}"
+        );
+    }
     let mut bytes = BTreeMap::new();
     for (name, entry) in &snapshot.files {
+        ensure!(
+            !guarded_path(name),
+            "guarded contents cannot be materialized: {name}"
+        );
         contained(cwd, name)?;
         bytes.insert(name, artifacts.get(&entry.digest)?);
     }
     let tracked = git::call(state, cwd, &["ls-files", "-z"])?;
     for name in tracked.split('\0').filter(|s| !s.is_empty()) {
-        if !snapshot.files.contains_key(name) {
+        if !snapshot.files.contains_key(name) && !snapshot.preserved.contains_key(name) {
             let target = contained(cwd, name)?;
             if target.exists() {
                 fs::remove_file(target)?;
@@ -137,13 +197,16 @@ pub fn materialize(state: &Path, cwd: &Path, artifacts: &Artifacts, key: &str) -
     // Restored files must enter the index so later snapshots include new source.
     let names: Vec<&str> = snapshot.files.keys().map(String::as_str).collect();
     if !names.is_empty() {
-        let mut args = vec!["add", "--"];
+        let mut args = vec!["add", "-f", "--"];
         args.extend(names);
         git::call(state, cwd, &args)?;
     }
     let check = capture(state, cwd, artifacts)?;
     let actual = read_snapshot(artifacts, &check)?;
-    ensure!(actual.files == snapshot.files, "restored snapshot differs");
+    ensure!(
+        actual.files == snapshot.files && actual.preserved == snapshot.preserved,
+        "restored snapshot differs"
+    );
     Ok(())
 }
 
@@ -161,7 +224,9 @@ pub fn restore(
     if path.exists() {
         let actual = read_snapshot(artifacts, &capture(state, &path, artifacts)?)?;
         ensure!(
-            actual.files == snapshot.files && actual.base == snapshot.base,
+            actual.files == snapshot.files
+                && actual.preserved == snapshot.preserved
+                && actual.base == snapshot.base,
             "interrupted handoff workspace differs; inspect before recovery"
         );
         return Ok(path);
@@ -183,7 +248,11 @@ pub fn restore(
 
 pub fn content_digest(artifacts: &Artifacts, key: &str) -> Result<String> {
     let snapshot = read_snapshot(artifacts, key)?;
-    Ok(digest(&serde_json::to_vec(&snapshot.files)?))
+    Ok(digest(&if snapshot.preserved.is_empty() {
+        serde_json::to_vec(&snapshot.files)?
+    } else {
+        serde_json::to_vec(&(snapshot.files, snapshot.preserved))?
+    }))
 }
 
 pub fn write_plan(state: &Path, cwd: &Path, run: &str, text: &str) -> Result<String> {

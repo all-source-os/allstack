@@ -1,6 +1,6 @@
 [package]
 name = "allstack"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.95"
 license = "Apache-2.0"
@@ -21,6 +21,10 @@ uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 tempfile = "3"
+
+[[test]]
+name = "workspace"
+harness = false
 
 [profile.dev]
 debug = 0

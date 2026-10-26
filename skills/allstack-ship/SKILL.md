@@ -13,6 +13,10 @@ Use `allstack current` behind the interface. For an active delivery, inspect its
 
 Review the candidate's behavior and applicable risk with `allstack-review`, then exercise the real job with `allstack-qa`. These are judgment and runtime checks, not substitutes for repository gates. Keep the accepted scope, source-linked decisions, and verification requirements intact.
 
+For native adoption, inspect the coordinator checkout that holds the candidate and its exact commit. An epoch worktree may still hold the earlier base; do not use its HEAD as evidence of the native candidate. Keep the coordinator at its original path until publication and store readback finish, then archive its path-bound receipts before cleanup. Preserve pre-existing Chronis tasks and required project Prime context.
+
+Existing guarded configuration files can remain in the tracked base: snapshots bind their Git identities without copying their contents into Allstack artifacts. A changed, added, or deleted guarded file blocks enrollment. Preserve the user's configuration; resolve the actual change rather than removing unrelated tracked files to satisfy adoption.
+
 ## Verify and publish
 
 Use the returned run identity and epoch internally. `allstack verify` prepares the owned single commit and runs the frozen policy against that exact SHA. Confirm positive test execution and unchanged candidate/environment. Any edit or amended commit requires fresh affected verification; do not ship stale receipts. A pending host call must be reconciled, never bypassed.

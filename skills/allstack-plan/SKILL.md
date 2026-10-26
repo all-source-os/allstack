@@ -17,12 +17,14 @@ Read the request, repository instructions, relevant code, and actual gates. Trac
 - **Failure behavior:** follow invalid input, empty results, partial writes, retries, interruption, and duplicate execution where relevant. Name which component detects each failure and what the user sees.
 - **Compatibility:** inspect current callers, serialized data, command output, and persisted state that the change touches. Specify what remains stable and how compatibility will be exercised.
 - **Data correctness:** identify units, rounding, ordering, identifiers, and trust boundaries. For money, use exact minor units and checked arithmetic; never hide malformed input behind a favorable result.
-- **Verification:** map each user-visible requirement to a real command or runtime action. Include a negative case that would catch the likely defect. State when a build only compiles and when a test actually executes.
+- **Verification:** map each user-visible requirement to a real command or runtime action. Include a negative case that would catch the likely defect, with its expected exit and output channels. State when a build only compiles and when a test actually executes. Name how the executable will be rebuilt from the intended source; a digest alone cannot establish source provenance, and cloned warm artifacts can retain stale timestamps.
 
 Do not expand the assignment into speculative platforms, services, or catalog entries. Escalate a concrete decision only when choosing without it risks the wrong outcome. Do not translate unknowns into time estimates.
 
 ## Hand off an executable plan
 
 Return the complete human flow, current behavior, proposed behavior, exact files, implementation sequence, acceptance commands, prerequisites, and unresolved permissions. Bind checks to the actual repository tools. Preserve the request's scope when another host implements it.
+
+Choose the durable coordinator before starting delivery. Prefer an exclusively owned clean primary checkout; isolate unrelated dirty work when needed. Preserve the project's existing Chronis history and Prime context. Moving a coordinator does not make its path-bound run history valid at the new path; archive that history before removing an owned checkout.
 
 For standalone work, save and index the plan under docs when requested or required by repository policy. Record accepted source-linked decisions with `allstack remember` when available. For an explicitly requested durable delivery, the host can use the coordinator guide to start and manage it behind this interface. Do not require durable delivery merely to produce a plan.

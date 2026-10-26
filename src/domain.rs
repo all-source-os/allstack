@@ -58,6 +58,8 @@ pub struct FileEntry {
 pub struct Snapshot {
     pub base: String,
     pub files: BTreeMap<String, FileEntry>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub preserved: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

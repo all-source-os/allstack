@@ -2,6 +2,8 @@
 
 ## Design
 
+- [2026-10-25: Native runtime checks and AllSource Prime validation](plans/2026-10-25-native-runtime-checks-design.md) — lessons from real native delivery, bounded command receipts, and authenticated AllSource application qualification.
+
 - [2026-10-25: Spendcheck category plan](plans/2026-10-25-spendcheck-category-plan.md) — real Claude native shaping/planning output for the expense-report application change.
 
 - [2026-10-25: Realignment with gstack's specialist workflow model](plans/2026-10-25-gstack-realignment-design.md) — product direction proposal, retained ecosystem strengths, native skills, and application-level acceptance.
@@ -13,6 +15,8 @@
 - [2026-10-24: Cross-host plan → build → verify → ship](plans/2026-10-24-cross-host-workflow-design.md) — product boundary, component ownership, state transitions, recovery, and implementation sequence.
 
 ## Reference
+
+- [Native AllSource workflow verification](reports/2026-10-26-native-allsource-verification.md) — installed runtime receipts, Chronis export compatibility, real hosts, and Prime application acceptance.
 
 - [Native skills and complete application verification](reports/2026-10-25-native-skills-application-verification.md) — installed interface, real Codex/Claude use, frozen expense acceptance, and durable publication evidence.
 
@@ -48,3 +52,5 @@ The repository is an implementation preview. Source-level contracts and fixture 
 - [Allstack delivery plan f2c4e41f-7616-4b34-aa56-4347fd1617fc](plans/allstack-f2c4e41f-7616-4b34-aa56-4347fd1617fc.md)
 
 - [Allstack delivery plan 9dc4c81f-73ca-4b92-89a2-be3c2ca44deb](plans/allstack-9dc4c81f-73ca-4b92-89a2-be3c2ca44deb.md)
+
+- [Allstack delivery plan 26340e4d-9eba-4ad5-bbe0-0832086978b5](plans/allstack-26340e4d-9eba-4ad5-bbe0-0832086978b5.md)

@@ -5,7 +5,7 @@ description: Exercise a real application flow through its UI, API, CLI, or job e
 
 # Exercise the real job
 
-Identify the target and the complete user job. Use the host's actual browser or runtime tools; probe availability before choosing a path. This skill runs independently and creates no delivery run or Chronis task. Read repository policy and preserve the user's existing authorization boundaries.
+Identify the target and the complete user job. Use an explicit supplied target directly; probe only missing browser or runtime capabilities. This skill runs independently and creates no delivery run or Chronis task. Read repository policy and preserve the user's existing authorization boundaries.
 
 ## Choose observable checks
 
@@ -16,6 +16,10 @@ For a UI, use an available browser to perform the interaction and inspect the vi
 ## Execute safely and retain evidence
 
 Use an isolated local target when mutations would otherwise affect production. Verify the server or executable belongs to this work, not another session. Respect explicit authorization for external writes. Give every subprocess a deadline no greater than 300 seconds, kill then reap on timeout, and run only one local build at once.
+
+Establish that the application was rebuilt from the intended source before recording its executable digest. Warm build directories can reuse stale binaries after timestamp-preserving copies; invalidate the affected application artifact or otherwise prove the rebuild. Run the actual built program, including negative cases with explicit expected exits.
+
+When installed, `allstack check --expect-exit 4 --seconds 120 -- /absolute/program arguments` retains a private receipt without creating a delivery run or task. Omit `--expect-exit` for zero; `--input prompt.txt` supplies bounded UTF-8 stdin. The deadline includes metadata. The repository must ignore `.allstack/`. A matching expected negative exit succeeds; timeout, signal, spawn failure, changed executable, and status mismatch fail and retain their receipt. Inspect `outcome`, separated raw stream paths and digests, and the target's result. Decoded text can be lossy; raw streams preserve bytes. Host tool summaries can combine channels and do not replace those files. An executable digest binds observed bytes, not the source that produced them.
 
 Record the target version, command or interaction, input, observed result, expected result, and executed test count where available. A zero-case run, timeout, skipped browser, or unavailable credential remains unverified. Inspect the underlying result rather than trusting a model summary or green wrapper.
 
