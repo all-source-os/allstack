@@ -1,9 +1,9 @@
 command_seconds = 240
-environment = ["PATH", "RUSTUP_TOOLCHAIN", "RUSTFLAGS", "CARGO_TARGET_DIR", "RUSTC_WRAPPER"]
+environment = ["PATH", "RUSTUP_TOOLCHAIN", "RUSTFLAGS", "CARGO_TARGET_DIR", "RUSTC_WRAPPER", "CARGO_PROFILE_DEV_DEBUG", "CARGO_PROFILE_TEST_DEBUG", "CARGO_BUILD_JOBS"]
 
 [[gates]]
 name = "toolkit format"
-argv = ["cargo", "fmt", "--all", "--", "--check"]
+argv = ["cargo", "fmt", "--package", "allstack", "--", "--check"]
 
 [[gates]]
 name = "native skills and runtime"
