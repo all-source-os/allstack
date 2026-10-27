@@ -64,7 +64,7 @@ jobs:
         with:
           tool: cargo-deny@0.19.2
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
-      - run: timeout -k 5 60 cargo +1.95 fmt --all -- --check
+      - run: timeout -k 5 60 cargo +1.95 fmt --package allstack -- --check
       - run: timeout -k 5 60 cargo +1.95 fmt --manifest-path examples/spendcheck/Cargo.toml -- --check
       - run: timeout -k 5 90 cargo +1.95 deny check
       - run: timeout -k 5 270 cargo +1.95 clippy --all-targets --locked -- -D warnings
