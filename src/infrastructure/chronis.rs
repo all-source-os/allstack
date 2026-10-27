@@ -1,7 +1,91 @@
 use super::process::{self, Spec};
 use crate::domain::Run;
 use anyhow::{Context, Result, ensure};
-use std::{collections::BTreeMap, path::Path};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
+
+pub fn project_root(state: &Path, repo: &Path) -> Result<Option<PathBuf>> {
+    ensure!(
+        !repo.join(".chronis").is_symlink(),
+        "Chronis store cannot be a symlink"
+    );
+    let common = super::git::call(
+        state,
+        repo,
+        &["rev-parse", "--path-format=absolute", "--git-common-dir"],
+    )?;
+    let common = PathBuf::from(common).canonicalize()?;
+    if common.file_name().is_some_and(|name| name == ".git") {
+        let root = common
+            .parent()
+            .context("Git common directory has no parent")?;
+        if root.join(".chronis").is_dir() {
+            ensure!(
+                !root.join(".chronis").is_symlink(),
+                "Chronis store cannot be a symlink"
+            );
+            if root != repo && repo.join(".chronis").is_dir() {
+                for entry in std::fs::read_dir(repo.join(".chronis"))? {
+                    let name = entry?.file_name();
+                    ensure!(
+                        name == "config.toml" || name == ".gitignore" || name == "sync",
+                        "worktree has independent Chronis data; reconcile before enrollment"
+                    );
+                }
+            }
+            return Ok(Some(root.to_path_buf()));
+        }
+    }
+    if repo.join(".chronis").is_dir() {
+        ensure!(
+            !repo.join(".chronis").is_symlink(),
+            "Chronis store cannot be a symlink"
+        );
+        return Ok(Some(repo.to_path_buf()));
+    }
+    Ok(None)
+}
+
+pub fn tracked_private_state(state: &Path, repo: &Path) -> Result<bool> {
+    let tracked = super::git::call(
+        state,
+        repo,
+        &["ls-files", "--", ".allstack", ".chronis", ".prime"],
+    )?;
+    for path in tracked.lines() {
+        if path == ".chronis/sync/events.jsonl" || path == ".chronis/.gitignore" {
+            continue;
+        }
+        if path == ".chronis/config.toml" {
+            let root = super::bootstrap_fs::Root::new(repo)?;
+            let bytes = root.read(path)?.context("tracked Chronis config absent")?;
+            ensure!(
+                bytes.len() <= 4096,
+                "Chronis config exceeds safe metadata bound"
+            );
+            let config: toml::Value = toml::from_str(std::str::from_utf8(&bytes)?)?;
+            if let Some(table) = config.as_table() {
+                let safe = table
+                    .keys()
+                    .all(|key| key == "mode" || key == "instance_id")
+                    && table
+                        .get("mode")
+                        .is_none_or(|mode| mode.as_str() == Some("embedded"))
+                    && table.get("instance_id").is_none_or(|id| {
+                        id.as_str()
+                            .is_some_and(|id| uuid::Uuid::parse_str(id).is_ok())
+                    });
+                if safe {
+                    continue;
+                }
+            }
+        }
+        return Ok(true);
+    }
+    Ok(false)
+}
 
 pub struct Tasks<'a> {
     pub state: &'a Path,
@@ -10,6 +94,8 @@ pub struct Tasks<'a> {
 
 impl Tasks<'_> {
     fn call(&self, args: &[&str], actor: Option<&str>) -> Result<String> {
+        let project =
+            project_root(self.state, self.repo)?.context("Chronis project store absent")?;
         let mut argv = vec!["cn".into()];
         argv.extend(args.iter().map(|s| s.to_string()));
         argv.push("--toon".into());
@@ -19,7 +105,7 @@ impl Tasks<'_> {
         }
         process::run(Spec {
             argv,
-            cwd: self.repo.into(),
+            cwd: project,
             seconds: 30,
             environment,
             input: None,

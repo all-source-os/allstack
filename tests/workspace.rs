@@ -190,8 +190,87 @@ fn guarded_contents_in_artifacts_cannot_overwrite_base_files() {
     );
 }
 
+fn expanded_budget_preserves_complete_large_checkout_and_project_tracker() {
+    let f = Fixture::new();
+    let large = vec![b'x'; 700 * 1024];
+    for index in 0..10_010 {
+        fs::write(
+            f.repo.join(format!("file-{index}")),
+            if index < 100 {
+                large.as_slice()
+            } else {
+                b"small"
+            },
+        )
+        .unwrap();
+    }
+    let names: Vec<String> = (0..10_010).map(|index| format!("file-{index}")).collect();
+    let mut args = vec!["add", "--"];
+    args.extend(names.iter().map(String::as_str));
+    f.git(&args);
+    f.commit();
+    assert!(f.capture().unwrap_err().to_string().contains("bounds"));
+    fs::create_dir(f.repo.join("workflows")).unwrap();
+    fs::write(
+        f.repo.join("workflows/snapshot-limits.toml"),
+        "max_files = 20000\nmax_total_bytes = 134217728\n",
+    )
+    .unwrap();
+    f.git(&["add", "--", "workflows/snapshot-limits.toml"]);
+    fs::write(f.repo.join("source.txt"), "candidate\n").unwrap();
+    fs::remove_file(f.repo.join("file-10000")).unwrap();
+    let key = f.capture().unwrap();
+    let snapshot = workspace::read_snapshot(&f.artifacts, &key).unwrap();
+    assert_eq!(snapshot.files.len() + snapshot.preserved.len(), 10_013);
+    assert!(!snapshot.files.contains_key("file-10000"));
+    let restored = workspace::restore(&f.state, &f.repo, &f.artifacts, &key, "large", 1).unwrap();
+    assert_eq!(fs::read(restored.join("file-0")).unwrap(), large);
+    assert_eq!(
+        fs::read_to_string(restored.join("source.txt")).unwrap(),
+        "candidate\n"
+    );
+    assert!(!restored.join("file-10000").exists());
+    assert_eq!(
+        workspace::capture(&f.state, &restored, &f.artifacts).unwrap(),
+        key
+    );
+    fs::create_dir(f.repo.join(".chronis")).unwrap();
+    fs::create_dir(restored.join(".chronis")).unwrap();
+    fs::write(restored.join(".chronis/config.toml"), "").unwrap();
+    assert_eq!(
+        allstack::infrastructure::chronis::project_root(&f.state, &restored).unwrap(),
+        Some(f.repo.canonicalize().unwrap())
+    );
+    assert!(!restored.join(".chronis/wal").exists());
+    fs::create_dir(restored.join(".chronis/wal")).unwrap();
+    assert!(allstack::infrastructure::chronis::project_root(&f.state, &restored).is_err());
+}
+
+fn invalid_snapshot_budgets_are_rejected() {
+    let f = Fixture::new();
+    fs::create_dir(f.repo.join("workflows")).unwrap();
+    let file = f.repo.join("workflows/snapshot-limits.toml");
+    for text in [
+        "max_files=100001\nmax_total_bytes=1",
+        "max_files=1\nmax_total_bytes=1073741825",
+        "max_files=0\nmax_total_bytes=1",
+        "max_files=1\nmax_total_bytes=1\nignore_all=true",
+    ] {
+        fs::write(&file, text).unwrap();
+        assert!(allstack::infrastructure::snapshot_limits::read(&f.repo).is_err());
+    }
+}
+
 fn main() -> anyhow::Result<()> {
-    let cases: [(&str, fn()); 4] = [
+    let cases: [(&str, fn()); 6] = [
+        (
+            "large-checkout-and-shared-tracker",
+            expanded_budget_preserves_complete_large_checkout_and_project_tracker,
+        ),
+        (
+            "invalid-snapshot-budget",
+            invalid_snapshot_budgets_are_rejected,
+        ),
         (
             "restore-without-copy",
             unchanged_guarded_base_files_restore_without_copying_contents_to_artifacts,
@@ -250,7 +329,7 @@ fn main() -> anyhow::Result<()> {
                 name.into(),
             ],
             cwd: state.path().into(),
-            seconds: 45,
+            seconds: 120,
             environment: BTreeMap::new(),
             input: None,
             directory: state.path().join(name),
