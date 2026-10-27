@@ -114,7 +114,7 @@ impl Platform for Runtime {
             git::clean(&self.state, &self.repo)?;
         }
         ensure!(
-            self.repo.join(".chronis").is_dir(),
+            super::chronis::project_root(&self.state, &self.repo)?.is_some(),
             "initialize project Chronis with cn init --toon first"
         );
         let branch = git::call(&self.state, &self.repo, &["branch", "--show-current"])?;

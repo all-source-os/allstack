@@ -91,7 +91,7 @@ The reverse sequence starts with `--host claude-code` and hands off to `codex` f
 
 In the active worktree reported by `status`, explicitly stage every new intended file with `git add -- <path>`. Then `checkpoint <run> --epoch <epoch>` retains the workspace. Untracked files block snapshot creation; Allstack never silently includes them. Checkpointing or handing off invalidates previous verification.
 
-Snapshots retain tracked contents and executable modes, including staged new files and tracked deletions. They reject symlinks, path escapes, recognized sensitive filenames, files above 4 MiB, totals above 64 MiB, and manifests above 10,000 files. Filename exclusions are a limited guardrail; review the candidate for secrets independently.
+Snapshots retain tracked contents and executable modes, including staged new files and tracked deletions. They reject symlinks, path escapes and changes to recognized sensitive filenames. Each copied file is limited to 4 MiB. Default budgets remain 64 MiB total and 10,000 files. Larger repositories can explicitly set `max_files` and `max_total_bytes` in tracked `workflows/snapshot-limits.toml`, bounded by 100,000 files and 1 GiB. The budget file is retained with each checkpoint; it does not omit source or authorize execution. Linked Git worktrees reuse the primary checkout’s existing Chronis store, with no new tracker initialized. Filename exclusions are a limited guardrail; review the candidate for secrets independently.
 
 Old worktrees remain separate after handoff. Native edits there do not change the incoming snapshot. An old epoch cannot drive Allstack-managed mutation. Local users and native host tools remain capable of operating outside Allstack; no filesystem sandbox or authenticated per-host identity is claimed by the epoch number.
 
@@ -128,6 +128,6 @@ Verification records the prepared commit so a changed checkpoint can be committe
 
 Retain tool versions, run IDs, exact commits, actual test counts and outputs, interruption points, remote/PR readbacks, and private artifact digests when validating the release. Publish only deliberately reviewed evidence in indexed repository documents. Fixture definitions and source tests do not establish that authenticated Codex and Claude Code completed the real journey.
 
-Initialization and doctor permit Chronis’s tracked `.chronis/sync/events.jsonl` Git sync export. Other tracked files under `.chronis/`, `.prime/`, and `.allstack/` remain rejected as private state. Existing exports are preserved.
+Initialization and doctor permit Chronis’s tracked `.chronis/sync/events.jsonl` Git sync export, `.chronis/.gitignore`, and bounded embedded-only `config.toml` metadata. Remote or secret-bearing configuration remains private. Other tracked files under `.chronis/`, `.prime/`, and `.allstack/` remain rejected as private state. Existing exports are preserved.
 
 Publishing changes under `.github/workflows/` requires GitHub workflow-write authority. A repository-scoped OAuth token can read the repository and create a PR while still failing the Git push for those files. Use an existing authorized SSH identity for the same repository, or a token with the required scope. Preserve the verified commit and reconcile the actual remote branch before retrying publication.

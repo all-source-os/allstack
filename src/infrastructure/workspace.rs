@@ -83,12 +83,13 @@ fn manifest(state: &Path, cwd: &Path) -> Result<Manifest> {
         others.is_empty(),
         "untracked files require explicit git add before checkpoint; never snapshot them implicitly"
     );
+    let limits = super::snapshot_limits::read(cwd)?;
     let mut result = BTreeMap::new();
     let mut preserved = BTreeMap::new();
     let mut total = 0;
     for name in tracked.split('\0').filter(|s| !s.is_empty()) {
         ensure!(
-            result.len() + preserved.len() < 10000,
+            result.len() + preserved.len() < limits.max_files,
             "snapshot exceeds supported bounds"
         );
         if guarded_path(name) {
@@ -106,7 +107,7 @@ fn manifest(state: &Path, cwd: &Path) -> Result<Manifest> {
         );
         total += meta.len();
         ensure!(
-            total <= 64 * 1024 * 1024,
+            total <= limits.max_total_bytes,
             "snapshot exceeds supported bounds"
         );
         result.insert(

@@ -206,18 +206,6 @@ fn call(scratch: &Scratch, repo: &Path, argv: &[&str]) -> Result<String> {
     process::checked(&scratch.0, repo, argv)
 }
 
-fn tracked_private_state(scratch: &Scratch, repo: &Path) -> Result<bool> {
-    let tracked = call(
-        scratch,
-        repo,
-        &["git", "ls-files", "--", ".allstack", ".chronis", ".prime"],
-    )?;
-    // Chronis intentionally versions this portable export for Git-backed sync.
-    Ok(tracked
-        .lines()
-        .any(|path| path != ".chronis/sync/events.jsonl"))
-}
-
 fn repair_overridden_ignores(scratch: &Scratch, repo: &Path, files: &mut [Change]) -> Result<()> {
     let outcome = process::run(process::Spec {
         argv: [
@@ -339,11 +327,15 @@ pub fn initialize(repo: &Path, check: bool, profile: Option<&str>, policy: &str)
     if call(&scratch, repo, &["cn", "--version", "--toon"]).is_err() {
         missing.push("Chronis cn executable unavailable".into());
     }
-    if tracked_private_state(&scratch, repo)? {
+    if super::chronis::tracked_private_state(&scratch.0, repo)? {
         missing.push("private store files are tracked; resolve before initialization".into());
     }
-    let chronis_exists = root.directory(".chronis")?;
-    if !check && chronis_exists && call(&scratch, repo, &["cn", "list", "--all", "--toon"]).is_err()
+    let chronis_project = super::chronis::project_root(&scratch.0, repo)?;
+    let chronis_repo = chronis_project.as_deref().unwrap_or(repo);
+    let chronis_exists = chronis_project.is_some();
+    if !check
+        && chronis_exists
+        && call(&scratch, chronis_repo, &["cn", "list", "--all", "--toon"]).is_err()
     {
         missing.push("existing Chronis store unreadable through cn".into());
     }
@@ -396,10 +388,10 @@ pub fn initialize(repo: &Path, check: bool, profile: Option<&str>, policy: &str)
         })?;
     }
     ensure!(
-        root.directory(".chronis")?,
+        super::chronis::project_root(&scratch.0, repo)?.is_some(),
         "cn did not initialize the target repository; completed: {completed:?}"
     );
-    call(&scratch, repo, &["cn", "list", "--all", "--toon"]).with_context(|| {
+    call(&scratch, chronis_repo, &["cn", "list", "--all", "--toon"]).with_context(|| {
         format!("Chronis readback failed; completed: {completed:?}; inspect and rerun")
     })?;
     check_ignored(&scratch, repo).with_context(|| {
@@ -454,8 +446,9 @@ pub fn doctor(repo: &Path, policy: &str) -> Result<Value> {
             missing.push(format!("{}: {}", f.path, f.status));
         }
     }
-    let chronis = if root.directory(".chronis")? {
-        match call(&scratch, repo, &["cn", "list", "--all", "--toon"]) {
+    let chronis_project = super::chronis::project_root(&scratch.0, repo)?;
+    let chronis = if let Some(project) = &chronis_project {
+        match call(&scratch, project, &["cn", "list", "--all", "--toon"]) {
             Ok(_) => "readable",
             Err(_) => {
                 missing.push("Chronis store unreadable through cn".into());
@@ -469,7 +462,7 @@ pub fn doctor(repo: &Path, policy: &str) -> Result<Value> {
     if check_ignored(&scratch, repo).is_err() {
         missing.push("private stores are not all ignored".into());
     }
-    if tracked_private_state(&scratch, repo)? {
+    if super::chronis::tracked_private_state(&scratch.0, repo)? {
         missing.push("private store files are tracked".into());
     }
     let tools: Vec<_> = ["codex", "claude", "cn", "git", "gh", "cargo", "rustc"].iter().map(|name| {
@@ -487,7 +480,7 @@ pub fn doctor(repo: &Path, policy: &str) -> Result<Value> {
     };
     Ok(
         json!({"repository":repo,"store":repo.join(".allstack"),"setup_ready":missing.is_empty(),
-        "executables_ready":available,"authentication":"not-probed","missing":missing,"files":files,"chronis":chronis,
+        "executables_ready":available,"authentication":"not-probed","missing":missing,"files":files,"chronis":chronis,"chronis_repository":chronis_project,
          "catalog":catalog,"stores_opened":false,"allsource":"embedded; fsync-per-event when run storage opens",
         "prime":"embedded graph; lexical recall; local-only; not opened by doctor",
         "coordinator":"exclusive-kernel-lock-per-run-command","host_scope":"sequential-same-machine","tools":tools}),

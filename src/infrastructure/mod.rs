@@ -13,6 +13,7 @@ pub mod memory;
 pub mod process;
 pub mod runtime;
 pub mod skills;
+pub mod snapshot_limits;
 pub mod store;
 pub mod workspace;
 
