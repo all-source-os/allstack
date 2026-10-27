@@ -310,6 +310,38 @@ fn check_mode_never_opens_existing_chronis_engine() {
 }
 
 #[test]
+fn tracked_embedded_configuration_is_metadata_but_remote_secrets_are_private() {
+    for (contents, ready) in [
+        ("", true),
+        ("mode = \"embedded\"\n", true),
+        (
+            "mode = \"remote\"\n[sync]\napi_key = \"fictional\"\n",
+            false,
+        ),
+    ] {
+        let f = Fixture::new(false);
+        fs::create_dir(f.repo.join(".chronis")).unwrap();
+        fs::write(f.repo.join(".chronis/config.toml"), contents).unwrap();
+        fs::write(f.repo.join(".chronis/.gitignore"), "wal/\nstorage/\n").unwrap();
+        let mut stage = Command::new("git");
+        stage.current_dir(&f.repo).args([
+            "add",
+            "-f",
+            "--",
+            ".chronis/config.toml",
+            ".chronis/.gitignore",
+        ]);
+        assert!(bounded(stage).0);
+        let before = f.fingerprint();
+        assert_eq!(
+            f.json(&["init", "--check", "--profile", "rust"])["ready"],
+            ready
+        );
+        assert_eq!(f.fingerprint(), before);
+    }
+}
+
+#[test]
 fn tracked_chronis_sync_export_survives_initialization_and_doctor() {
     let f = Fixture::new(false);
     fs::create_dir_all(f.repo.join(".chronis/sync")).unwrap();

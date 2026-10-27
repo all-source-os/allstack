@@ -80,3 +80,5 @@ The repository is an implementation preview. Source-level contracts and fixture 
 - [Allstack delivery plan 1414ddc7-4b9e-424f-bf1e-e73ad57d091d](plans/allstack-1414ddc7-4b9e-424f-bf1e-e73ad57d091d.md)
 
 - [Allstack delivery plan a4abab43-5ae5-4618-8efa-7d61f0e5f323](plans/allstack-a4abab43-5ae5-4618-8efa-7d61f0e5f323.md)
+
+- [Longhand managed staff compatibility](reports/2026-10-27-longhand-managed-enrollment.md) — complete snapshots and existing tracker routing.
