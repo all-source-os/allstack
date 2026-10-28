@@ -2,6 +2,8 @@
 
 ## Design
 
+- [2026-10-28: Native runtime evidence and Prime control values](plans/2026-10-28-native-runtime-evidence-design.md) — installed-runtime identity, final artifact qualification, archived memory recovery and the next real AllSource delivery.
+
 - [2026-10-27: Native evidence checkpoints and Chronis qualification](plans/2026-10-27-native-evidence-and-chronis-design.md) — hosted-proof lessons in existing skills, preserved receipt streams, and real CLI integrity acceptance across Codex and Claude.
 
 - [2026-10-25: Native runtime checks and AllSource Prime validation](plans/2026-10-25-native-runtime-checks-design.md) — lessons from real native delivery, bounded command receipts, and authenticated AllSource application qualification.
@@ -17,6 +19,10 @@
 - [2026-10-24: Cross-host plan → build → verify → ship](plans/2026-10-24-cross-host-workflow-design.md) — product boundary, component ownership, state transitions, recovery, and implementation sequence.
 
 ## Reference
+
+- [Native runtime evidence qualification](reports/2026-10-28-native-runtime-evidence-verification.md) — installed methods, independent C0-value regression, real Codex/Claude handoffs, final artifacts and archived Prime recovery.
+
+- [Native runtime evidence request](reference/native-runtime-evidence-request.md) — accepted method changes, packaging and real AllSource qualification.
 
 - [Native evidence checkpoints and real Chronis delivery](reports/2026-10-27-native-evidence-chronis-verification.md) — actual Codex/Claude calls, baseline failures, independent runtime QA, durable handoff and exact-commit publication.
 
@@ -64,3 +70,7 @@ The repository is an implementation preview. Source-level contracts and fixture 
 - [Allstack delivery plan 26340e4d-9eba-4ad5-bbe0-0832086978b5](plans/allstack-26340e4d-9eba-4ad5-bbe0-0832086978b5.md)
 
 - [Allstack delivery plan f870b303-2b8f-4385-9f6a-c0ed60bb6b61](plans/allstack-f870b303-2b8f-4385-9f6a-c0ed60bb6b61.md)
+
+- [Allstack delivery plan 1414ddc7-4b9e-424f-bf1e-e73ad57d091d](plans/allstack-1414ddc7-4b9e-424f-bf1e-e73ad57d091d.md)
+
+- [Allstack delivery plan a4abab43-5ae5-4618-8efa-7d61f0e5f323](plans/allstack-a4abab43-5ae5-4618-8efa-7d61f0e5f323.md)
