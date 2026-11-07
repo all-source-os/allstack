@@ -310,3 +310,55 @@ pub fn validate_transition(previous: Option<&Run>, event: &Event) -> Result<(), 
         _ => Err("missing, duplicated, or invalid event sequence".into()),
     }
 }
+
+/// A recorded human decision to accept one exact design digest.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SpecApproval {
+    pub schema: u8,
+    pub path: String,
+    pub digest: String,
+    pub approver: String,
+    pub review: Option<String>,
+    pub without_review: bool,
+    pub sequence: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpecGate {
+    Approved,
+    Unapproved,
+    Changed,
+    Unreviewed,
+}
+
+impl SpecGate {
+    pub fn reason(self) -> &'static str {
+        match self {
+            Self::Approved => "approved",
+            Self::Unapproved => "unapproved",
+            Self::Changed => "changed since approval",
+            Self::Unreviewed => "unreviewed",
+        }
+    }
+}
+
+/// `review_ok` is false when the approval cites a review receipt that is missing or bound to another digest.
+pub fn spec_gate(latest: Option<&SpecApproval>, digest: &str, review_ok: bool) -> SpecGate {
+    match latest {
+        None => SpecGate::Unapproved,
+        Some(approval) if approval.digest != digest => SpecGate::Changed,
+        Some(_) if !review_ok => SpecGate::Unreviewed,
+        Some(_) => SpecGate::Approved,
+    }
+}
+
+/// Design paths are repository-relative Markdown files with no parent or hidden components.
+pub fn spec_path_valid(path: &str) -> bool {
+    !path.is_empty()
+        && path.ends_with(".md")
+        && !path.starts_with('/')
+        && path
+            .split('/')
+            .all(|part| !part.is_empty() && part != ".." && !part.starts_with('.'))
+}

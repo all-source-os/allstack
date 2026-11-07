@@ -43,7 +43,19 @@ fn installs_native_hosts_without_project_profile_or_stores_and_preserves_conflic
     assert!(!dir.path().join(".agents").exists());
     bootstrap::install_skills(dir.path(), false).unwrap();
     for host in [".agents", ".claude"] {
-        for id in ["shape", "plan", "review", "qa", "ship", "recall", "handoff"] {
+        for id in [
+            "shape",
+            "plan",
+            "review",
+            "qa",
+            "ship",
+            "recall",
+            "handoff",
+            "harness",
+            "spec",
+            "reflect",
+            "investigate",
+        ] {
             let path = dir
                 .path()
                 .join(format!("{host}/skills/allstack-{id}/SKILL.md"));
@@ -151,7 +163,7 @@ async fn empty_recall_and_discovery_leave_repository_untouched() {
             .as_array()
             .unwrap()
             .len(),
-        7
+        11
     );
     let dir = repository();
     assert_eq!(
@@ -159,7 +171,7 @@ async fn empty_recall_and_discovery_leave_repository_untouched() {
             .as_array()
             .unwrap()
             .len(),
-        7
+        11
     );
     assert!(skills::inspect(Some("invented")).is_err());
     assert_eq!(

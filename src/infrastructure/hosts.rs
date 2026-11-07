@@ -11,7 +11,6 @@ pub fn invoke(
     prompt: &str,
     planning: bool,
 ) -> Result<String> {
-    let claude_build_tools = "Read,Glob,Grep,Edit,Write,Bash(git diff *),Bash(git status *),Bash(git add -- *),Bash(rtk git diff *),Bash(rtk git status *),Bash(rtk git add -- *),Bash(shasum -a 256 *)";
     let prompt = format!(
         "Managed Allstack run {}. Host {}, epoch {}, revision {}. Chronis task {} already claimed and read back by coordinator for this host. Active checkpoint {}. This detached worktree is intentional; original repository branch is {}. Do not change task ownership or run state yourself. Recover source context from the indexed plan; no prior conversation is assumed.\n\n{}",
         run.id,
@@ -30,7 +29,30 @@ pub fn invoke(
     } else {
         prompt
     };
-    let argv: Vec<String> = match run.host {
+    let outcome = process::run(Spec {
+        argv: argv(run.host, planning),
+        cwd: (&run.workspace).into(),
+        seconds: policy.command_seconds.min(290),
+        environment: BTreeMap::new(),
+        input: Some(prompt),
+        directory: state.join("process"),
+    })?;
+    ensure!(
+        outcome.success(),
+        "host failed, timed out, or lost owner; inspect private process evidence and reconcile: {}",
+        outcome.stderr
+    );
+    final_text(run.host, &outcome.stdout)
+}
+
+/// Argv for a host run with read-only tools and no edit or shell authority.
+pub fn read_only_argv(host: Host) -> Vec<String> {
+    argv(host, true)
+}
+
+fn argv(host: Host, planning: bool) -> Vec<String> {
+    let claude_build_tools = "Read,Glob,Grep,Edit,Write,Bash(git diff *),Bash(git status *),Bash(git add -- *),Bash(rtk git diff *),Bash(rtk git status *),Bash(rtk git add -- *),Bash(shasum -a 256 *)";
+    match host {
         Host::Codex => vec![
             "codex",
             "exec",
@@ -71,23 +93,14 @@ pub fn invoke(
         .into_iter()
         .map(String::from)
         .collect(),
-    };
-    let outcome = process::run(Spec {
-        argv,
-        cwd: (&run.workspace).into(),
-        seconds: policy.command_seconds.min(290),
-        environment: BTreeMap::new(),
-        input: Some(prompt),
-        directory: state.join("process"),
-    })?;
-    ensure!(
-        outcome.success(),
-        "host failed, timed out, or lost owner; inspect private process evidence and reconcile: {}",
-        outcome.stderr
-    );
-    match run.host {
+    }
+}
+
+/// Extracts the final assistant text from a successful host run's stdout.
+pub fn final_text(host: Host, stdout: &str) -> Result<String> {
+    match host {
         Host::ClaudeCode => {
-            let value: Value = serde_json::from_str(outcome.stdout.trim())
+            let value: Value = serde_json::from_str(stdout.trim())
                 .context("invalid Claude result; operation remains unresolved")?;
             ensure!(
                 value["is_error"] == false,
@@ -107,8 +120,7 @@ pub fn invoke(
                 .to_string())
         }
         Host::Codex => {
-            let events: Vec<Value> = outcome
-                .stdout
+            let events: Vec<Value> = stdout
                 .lines()
                 .map(serde_json::from_str)
                 .collect::<Result<_, _>>()?;

@@ -1,4 +1,5 @@
 pub mod ports;
+pub mod spec;
 use crate::domain::{Host, Policy, Run, Stage};
 use anyhow::{Context, Result, ensure};
 use ports::{Platform, Start};

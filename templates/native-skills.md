@@ -11,6 +11,10 @@ Invoke skills directly in your coding host. Codex accepts `$allstack-shape` and 
 | `allstack-ship` | Verify and publish an authorized change through managed delivery. |
 | `allstack-recall` | Recover relevant decisions and inspect their sources. |
 | `allstack-handoff` | Explicitly continue an active delivery in another coding host. |
+| `allstack-harness` | Name the current lifecycle stage and load the next skill. |
+| `allstack-spec` | Draft a design, obtain a fresh-context review, and record a digest-bound approval. |
+| `allstack-investigate` | Diagnose a reported defect from evidence and produce a repair plan. |
+| `allstack-reflect` | Write a retrospective and flag approved designs whose code moved. |
 
 Install just this interface with `allstack init --skills-only --check`, then `allstack init --skills-only`. No Rust project, Chronis executable, task, delivery run, or Prime store is needed for installation or independent shaping, planning, review, and QA. Existing managed installation also includes these skills. Conflicting files are preserved and reported before writes. Review initialized files before committing them.
 

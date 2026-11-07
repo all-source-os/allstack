@@ -4,6 +4,12 @@ Start with the [installed guide](../../templates/native-skills.md), which is bun
 
 Original methods are versioned under [skills](../../skills). The installer packages identical method bodies for both hosts and adds a host-specific capability note. Native methods use the host's current tools and permissions. Existing managed plan/build calls retain their stricter tool scope; their restrictions do not apply to an independent native invocation.
 
+## Spec gate
+
+`allstack-harness` names the lifecycle stage and loads the next skill. `allstack-spec` drafts a design under `docs/plans/`, and `allstack spec review <path> --host codex|claude` obtains a read-only review from a fresh host process. That process receives only the draft path and repository root. `allstack spec approve <path> --by <name>` records an approval bound to the file's SHA-256 digest, and `allstack spec check <path>` exits 0 only while the latest approval still matches the file. Approval refuses a digest without a review receipt unless `--without-review` is passed. The approval store is the AllSource store under `.allstack/`. Receipts live under `.allstack/spec/reviews/`. Terms are listed in the [agentic harness glossary](../concepts/agentic-harness.md).
+
+`allstack-investigate` diagnoses a reported defect, and `allstack-reflect` writes a retrospective and flags approved designs whose named code moved after approval.
+
 ## Durable services
 
 AllSource continues to validate managed-run event chains and exact-commit receipts. Chronis owns delivery claims and completion. Prime retains source-linked context. Standalone `remember` records a bounded summary plus the digest of an existing Markdown document under docs, then reads the actual Prime node back. Repeated identical writes reuse the binding. Source changes create a distinct historical binding rather than silently replacing earlier evidence.

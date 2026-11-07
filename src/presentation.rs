@@ -151,8 +151,52 @@ pub enum Action {
     Recall {
         query: String,
     },
+    /// Review a design document in a fresh host process and record a digest-bound approval.
+    Spec {
+        #[command(subcommand)]
+        action: SpecAction,
+    },
     #[command(name = "__supervise", hide = true)]
     Supervise,
+}
+
+#[derive(Subcommand)]
+pub enum SpecAction {
+    /// Run a read-only host review that sees only the design path and repository root.
+    Review {
+        path: String,
+        #[arg(long, value_parser = ["codex", "claude"], default_value = "codex")]
+        host: String,
+    },
+    /// Approve the current digest of a design after a matching review receipt exists.
+    Approve {
+        path: String,
+        #[arg(long)]
+        by: String,
+        #[arg(long)]
+        without_review: bool,
+    },
+    /// Exit nonzero unless the latest approval matches the design's current digest.
+    Check { path: String },
+}
+
+async fn spec_command(repo: &std::path::Path, action: &SpecAction) -> Result<Value> {
+    use crate::infrastructure::spec;
+    match action {
+        SpecAction::Review { path, host } => {
+            let host = match host.as_str() {
+                "codex" => Host::Codex,
+                _ => Host::ClaudeCode,
+            };
+            spec::review(repo, path, host).await
+        }
+        SpecAction::Approve {
+            path,
+            by,
+            without_review,
+        } => spec::approve(repo, path, by, *without_review).await,
+        SpecAction::Check { path } => spec::check(repo, path).await,
+    }
 }
 
 pub async fn execute(cli: Cli) -> Result<Value> {
@@ -196,6 +240,7 @@ pub async fn execute(cli: Cli) -> Result<Value> {
         Action::Recall { query } => {
             return crate::infrastructure::knowledge::recall(&repo, query).await;
         }
+        Action::Spec { action } => return spec_command(&repo, action).await,
         Action::Doctor { policy } => return bootstrap::doctor(&repo, policy),
         Action::Catalog { workflow } => return catalog::inspect(&repo, workflow.as_deref()),
         _ => {}
@@ -216,7 +261,8 @@ async fn dispatch(p: &Runtime, action: Action) -> Result<Value> {
         | Action::Catalog { .. }
         | Action::Skills { .. }
         | Action::Remember { .. }
-        | Action::Recall { .. } => {
+        | Action::Recall { .. }
+        | Action::Spec { .. } => {
             unreachable!("setup commands dispatch before opening run storage")
         }
         Action::Start {
