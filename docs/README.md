@@ -1,5 +1,9 @@
 # Documentation
 
+## Concepts
+
+- [Agentic harness glossary](concepts/agentic-harness.md) — harness, skills, guards, spec review and approval, ledger, verdicts and confidence tiers mapped to Allstack concepts.
+
 ## Design
 
 - [2026-10-28: Native runtime evidence and Prime control values](plans/2026-10-28-native-runtime-evidence-design.md) — installed-runtime identity, final artifact qualification, archived memory recovery and the next real AllSource delivery.
@@ -19,6 +23,8 @@
 - [2026-10-24: Cross-host plan → build → verify → ship](plans/2026-10-24-cross-host-workflow-design.md) — product boundary, component ownership, state transitions, recovery, and implementation sequence.
 
 ## Reference
+
+- [Harness Edition evaluation: gap matrix and build plan](reports/2026-11-07-harness-edition-evaluation.md) — proposal compared with Allstack, decebal-claude-skills and local host configuration; what this change builds and what remains open.
 
 - [Native runtime evidence qualification](reports/2026-10-28-native-runtime-evidence-verification.md) — installed methods, independent C0-value regression, real Codex/Claude handoffs, final artifacts and archived Prime recovery.
 

@@ -165,6 +165,47 @@ impl Store {
         Ok(())
     }
 
+    /// Appends a non-run fact under its own entity and reads it back before returning.
+    pub async fn record_fact(
+        &self,
+        entity: &str,
+        event_type: &str,
+        payload: serde_json::Value,
+    ) -> Result<()> {
+        self.core
+            .ingest(IngestEvent {
+                entity_id: entity,
+                event_type,
+                payload: payload.clone(),
+                metadata: None,
+                tenant_id: None,
+            })
+            .await
+            .context("fact append uncertain; inspect before retry")?;
+        ensure!(
+            self.facts(entity, event_type).await?.contains(&payload),
+            "fact append acknowledgement mismatch"
+        );
+        Ok(())
+    }
+
+    pub async fn facts(&self, entity: &str, event_type: &str) -> Result<Vec<serde_json::Value>> {
+        let page = self
+            .core
+            .query_page(Query::new().entity_id(entity).limit(1001))
+            .await?;
+        ensure!(
+            !page.has_more && page.total_count == page.events.len() && page.events.len() <= 1000,
+            "incomplete or oversized fact history"
+        );
+        Ok(page
+            .events
+            .into_iter()
+            .filter(|raw| raw.entity_id == entity && raw.event_type == event_type)
+            .map(|raw| raw.payload)
+            .collect())
+    }
+
     pub async fn shutdown(&self) -> Result<()> {
         self.core.shutdown().await?;
         Ok(())

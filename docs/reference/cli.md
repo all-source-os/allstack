@@ -24,6 +24,20 @@ Run `allstack -C /path/to/target-repository doctor` (add `--policy <path>` for a
 
 `init --check` returns `ready: false` with planned paths, digests, conflicts, and missing prerequisites when setup cannot be applied. Existing Chronis engine readback is explicitly deferred until apply; opening its engine could write storage metadata. Check-mode readiness covers resource and executable preflight, with that readback still outstanding. Applying failed preflight stops before writing managed resources or initializing Chronis. Symlinks, traversal, reserved policy destinations, and nonregular/multiply-linked files are refused. File creation cannot replace a destination introduced after preflight. Index/ignore updates append bytes after comparing the original contents. Concurrent edits can require inspection and a rerun.
 
+## Spec review and approval
+
+`spec` commands run from the repository root and take a repository-relative Markdown path. They open only the AllSource store under `.allstack/`; they create no run, task, or Prime store.
+
+```sh
+allstack -C /path/to/repository spec review docs/plans/change-design.md --host codex
+allstack -C /path/to/repository spec approve docs/plans/change-design.md --by "Approver Name"
+allstack -C /path/to/repository spec check docs/plans/change-design.md
+```
+
+- `review` starts a read-only host process (`codex exec --sandbox read-only` or `claude --print` with Read, Glob, and Grep only) with a 240-second deadline. Its prompt contains the draft path and repository root. The receipt is written under `.allstack/spec/reviews/<digest>-<uuid>.json`, and the JSON output includes its `receipt` path and `verdict` (`clean`, `findings`, or `unknown`). A failed host exits nonzero and writes no receipt.
+- `approve` records the file's SHA-256 digest, the approver, and the matching receipt path. It refuses when no receipt exists for the current digest. `--without-review` records an explicit override with no receipt. Approval requires a receipt whose verdict is `clean`; `findings` and `unknown` receipts are refused. `--without-review` is the only override. Approval history per design holds at most 1000 events; a further approval fails with `incomplete or oversized fact history`.
+- `check` exits 0 only when the latest approval's digest equals the current digest and its receipt, if one was cited, still exists, names that digest, and has verdict `clean`. Otherwise it exits nonzero with the reason: `unapproved`, `changed since approval`, or `unreviewed`. `check` takes the run coordinator lock and fails with `run coordinator busy` during a managed run. When `.allstack` exists it may create store files in it.
+
 ## Workflow selection
 
 Use `allstack catalog` to list repository workflows or `allstack catalog bugfix` to inspect evidence-led diagnosis and repair. Pass `start --workflow bugfix` to select it; the default remains `delivery`. See the [catalog reference](workflow-catalog.md) for contracts and additive initialization. Catalog discovery opens no mutable run store. Existing repositories without a catalog and retained runs without selection metadata preserve legacy delivery behavior.

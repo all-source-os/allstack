@@ -35,6 +35,10 @@ Then invoke a skill by name. Codex accepts `$allstack-plan`; Claude Code accepts
 | `allstack-ship` | Verify and publish the authorized change through managed delivery. |
 | `allstack-recall` | Recover relevant project knowledge and inspect its sources. |
 | `allstack-handoff` | Explicitly continue an active delivery in another host. |
+| `allstack-harness` | Name the current lifecycle stage (Think through Reflect) and load the next skill. |
+| `allstack-spec` | Draft a design, obtain a fresh-context review, and record a digest-bound approval. |
+| `allstack-investigate` | Diagnose a reported defect from evidence and produce a repair plan. |
+| `allstack-reflect` | Write a retrospective and flag approved designs whose code moved since approval. |
 
 Skills-only setup needs no Rust project, Chronis executable, task, or delivery run. Independent shaping, planning, review, and QA use the native host's tools and permissions. Shared original methods live in [skills/](skills); Rust packages them for both hosts with capability overlays. `allstack skills` inspects the bundled interface without opening stores.
 

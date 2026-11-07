@@ -56,11 +56,15 @@ async fn main() {
                         .map(|s| s.0.join("process"))
                         .unwrap_or_else(|| repo.join(".allstack/process")),
                 })?;
-                anyhow::ensure!(
-                    output.success(),
-                    "operation failed or exceeded its deadline: {}",
-                    output.stderr
-                );
+                anyhow::ensure!(!output.timed_out, "operation exceeded its 290s deadline");
+                if !output.success() {
+                    let reported = serde_json::from_str::<serde_json::Value>(&output.stderr)
+                        .ok()
+                        .and_then(|v| v.get("error")?.as_str().map(str::to_owned));
+                    anyhow::bail!(
+                        reported.unwrap_or(format!("operation failed: {}", output.stderr))
+                    );
+                }
                 Ok(serde_json::from_str(&output.stdout)?)
             })()
         }

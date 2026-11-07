@@ -22,6 +22,19 @@ const METHODS: &[(&str, &str)] = &[
         "handoff",
         include_str!("../../skills/allstack-handoff/SKILL.md"),
     ),
+    (
+        "harness",
+        include_str!("../../skills/allstack-harness/SKILL.md"),
+    ),
+    ("spec", include_str!("../../skills/allstack-spec/SKILL.md")),
+    (
+        "reflect",
+        include_str!("../../skills/allstack-reflect/SKILL.md"),
+    ),
+    (
+        "investigate",
+        include_str!("../../skills/allstack-investigate/SKILL.md"),
+    ),
 ];
 
 pub fn method(name: &str) -> Result<&'static str> {
