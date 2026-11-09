@@ -91,6 +91,7 @@ fn review_runs_fresh_host_and_approval_binds_the_digest() {
     let prompt = f.captured_prompt();
     assert!(prompt.contains(DESIGN), "{prompt}");
     assert!(prompt.contains("no prior conversation"), "{prompt}");
+    assert!(prompt.contains("at most 12 code locations"), "{prompt}");
     assert!(prompt.len() < 2000, "reviewer prompt carries extra context");
 
     let approved = f.json(&["spec", "approve", DESIGN, "--by", "reviewer"]);
@@ -137,6 +138,16 @@ fn failed_host_fails_the_review_and_writes_no_receipt() {
     let f = Fixture::new(FAIL);
     let (ok, _, err) = f.run(&["spec", "review", DESIGN]);
     assert!(!ok && err.contains("review host failed"), "{err}");
+    assert!(err.contains("exit Some(3)"), "{err}");
+    let evidence = err
+        .split("evidence at ")
+        .nth(1)
+        .and_then(|rest| rest.split(':').next())
+        .unwrap_or_else(|| panic!("no evidence path: {err}"));
+    assert!(
+        PathBuf::from(evidence).join("result.json").is_file(),
+        "{err}"
+    );
     assert!(!f.repo.join(".allstack/spec/reviews").exists());
 }
 

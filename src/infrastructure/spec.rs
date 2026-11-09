@@ -71,14 +71,19 @@ pub async fn review(repo: &Path, path: &str, host: Host) -> Result<Value> {
     let outcome = process::run(process::Spec {
         argv: hosts::read_only_argv(host),
         cwd: repo.into(),
-        seconds: 240,
+        // Stays below the 290-second limit on the enclosing operation so a timeout is reported.
+        seconds: 280,
         environment: BTreeMap::new(),
         input: Some(rules::review_prompt(path, &repo.to_string_lossy())),
         directory: repo.join(".allstack/process"),
     })?;
     ensure!(
         outcome.success(),
-        "review host failed, timed out, or lost owner; inspect private process evidence: {}",
+        "review host failed (exit {:?}, timed out {}, owner lost {}); inspect private process evidence at {}: {}",
+        outcome.code,
+        outcome.timed_out,
+        outcome.owner_lost,
+        outcome.evidence.display(),
         outcome.stderr
     );
     let findings = hosts::final_text(host, &outcome.stdout)?;

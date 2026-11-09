@@ -29,6 +29,8 @@ pub struct Outcome {
     pub elapsed_ms: u128,
     pub stdout: String,
     pub stderr: String,
+    #[serde(default)]
+    pub evidence: PathBuf,
 }
 
 impl Outcome {
@@ -187,6 +189,7 @@ pub fn supervise() -> Result<()> {
         elapsed_ms: start.elapsed().as_millis(),
         stdout: read("stdout")?,
         stderr: read("stderr")?,
+        evidence: spec.directory.clone(),
     };
     atomic_write(
         &spec.directory.join("result.json"),
