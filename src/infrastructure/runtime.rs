@@ -9,7 +9,9 @@ use super::{
 };
 use crate::{
     application::ports::{Platform, Start},
-    domain::{Policy, Publication, Run, Stage, Verification, WorkflowSelection},
+    domain::{
+        Policy, Publication, Run, Stage, Verification, WorkflowSelection, managed_commit_message,
+    },
 };
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
@@ -316,7 +318,8 @@ impl Platform for Runtime {
         if count == 1 {
             args.push("--amend");
         }
-        args.extend(["-m", message, "-m", &marker]);
+        let full_message = managed_commit_message(message, &run.id);
+        args.extend(["-m", &full_message]);
         git::call(&self.state, &self.repo, &args)?;
         git::clean(&self.state, &self.repo)?;
         git::call(&self.state, &self.repo, &["rev-parse", "HEAD"])

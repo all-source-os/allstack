@@ -1,5 +1,26 @@
 mod common;
-use allstack::domain::{Event, Host, Policy, Stage, validate_transition};
+use allstack::domain::{Event, Host, Policy, Stage, managed_commit_message, validate_transition};
+
+#[test]
+fn the_run_marker_joins_the_closing_trailer_block() {
+    let message = "feat(x): add y\n\nBody.\n\nRelease-note: Users can y.\n";
+    assert_eq!(
+        managed_commit_message(message, "run-1"),
+        "feat(x): add y\n\nBody.\n\nRelease-note: Users can y.\nAllstack-Run: run-1"
+    );
+}
+
+#[test]
+fn the_run_marker_starts_its_own_block_after_prose_or_a_bare_subject() {
+    assert_eq!(
+        managed_commit_message("fix: add y\n\nA body line.", "run-1"),
+        "fix: add y\n\nA body line.\n\nAllstack-Run: run-1"
+    );
+    assert_eq!(
+        managed_commit_message("fix: add y", "run-1"),
+        "fix: add y\n\nAllstack-Run: run-1"
+    );
+}
 
 #[test]
 fn stale_host_and_unknown_action_cannot_execute() {
