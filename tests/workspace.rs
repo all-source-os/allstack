@@ -49,7 +49,8 @@ impl Fixture {
                 .map(String::from)
                 .collect(),
             cwd: self.repo.clone(),
-            seconds: 10,
+            // The large-checkout case stages 10,010 files in one call.
+            seconds: 60,
             environment: BTreeMap::new(),
             input: None,
             directory: self.state.join("process"),

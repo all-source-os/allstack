@@ -362,3 +362,27 @@ pub fn spec_path_valid(path: &str) -> bool {
             .split('/')
             .all(|part| !part.is_empty() && part != ".." && !part.starts_with('.'))
 }
+
+/// The managed commit message. The run marker joins the message's closing
+/// trailer block, because git reads trailers only from the last paragraph and a
+/// repository may require its own (`Release-note:`, `Signed-off-by:`).
+pub fn managed_commit_message(message: &str, run_id: &str) -> String {
+    let message = message.trim_end();
+    let marker = format!("Allstack-Run: {run_id}");
+    let closes_with_trailers = message
+        .rsplit_once("\n\n")
+        .is_some_and(|(_, last)| last.lines().all(is_trailer));
+    if closes_with_trailers {
+        format!("{message}\n{marker}")
+    } else {
+        format!("{message}\n\n{marker}")
+    }
+}
+
+fn is_trailer(line: &str) -> bool {
+    line.split_once(": ").is_some_and(|(key, value)| {
+        !key.is_empty()
+            && !value.trim().is_empty()
+            && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+    })
+}
