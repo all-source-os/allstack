@@ -22,7 +22,7 @@ Status is one of `have`, `part`, `gap`, `conflict`, `water`, or `unverified`. Ev
 | Reflect: brief, scorecard, drift report | gap | No retro or learn skill in allstack skills or METHODS (skills.rs:5-25). allstack-recall covers recall only. | allstack |
 | File hand-offs between stages | part | Docs and Prime memory, no typed manifest. allstack hardcodes `docs/plans/allstack-{run.id}.md` (application/mod.rs:184). | allstack |
 | Entry skill `harness` routing stages | gap | No harness skill in either repository or installed directory. | both |
-| gstack: office-hours, plan-ceo-review, autoplan | part / part / gap | Installed gstack symlinks only. decebal has no plan-ceo-review or autoplan directory. | decebal |
+| gstack: office-hours, plan-ceo-review, autoplan | part / have / have | plan-ceo-review and autoplan are installed for both hosts: `~/.claude/skills/{plan-ceo-review,autoplan}` and `~/.codex/skills/gstack-{plan-ceo-review,autoplan}`. Both are generated from gstack templates, so a vendored port would drift. Autoplan's "< 1 day CC effort" threshold conflicts with a no-time-estimates rule. | none |
 | gstack: plan-eng-review, review, ship | have | allstack-plan:12-33, allstack-review, allstack-ship, plus gstack symlinks. | allstack |
 | gstack: investigate | part | `workflows/methods/diagnose.md` was not in METHODS (skills.rs had seven entries). decebal has systematic-debugging. | allstack |
 | gstack: qa and browse | part | allstack-qa named no browser driver (SKILL.md:8, 16, 28). Driver choice is open. | allstack |
@@ -61,7 +61,7 @@ Status is one of `have`, `part`, `gap`, `conflict`, `water`, or `unverified`. Ev
 | cos agents: three versus one brief | conflict | main ships three agents. `feat/cos-dashboard-from-upstream` was not read. | neither |
 | Installed skill and agent drift | gap | `~/.claude/agents/strategist.md` and `tactician.md` hardcode a local chief-of-staff path. | decebal |
 | Browser driver for qa in sbx | water | sbx is not installed. The cos sandbox is Seatbelt, not sbx. | neither |
-| EGM install, plugin or vendor | gap | `claude plugin marketplace add google/elephant-goldfish-model` (harness.txt:277). EGM was not fetched. | both |
+| EGM install, plugin or vendor | have | Plugin `egm@egm` 0.1.1 from `google/elephant-goldfish-model` (Apache-2.0) is enabled in Claude Code and Codex at user scope. Install commands are in the upstream README. No vendoring. | none |
 
 ## 2. Build plan
 
@@ -75,7 +75,7 @@ Each entry names its confidence tier and what would move it up. Tiers are rock (
 
 ### Spec layer
 
-- Skills `allstack-spec` (this repository) and the EGM skills in decebal. Confidence: sand. Moves up when EGM's reviewer configuration and its five review stages are read. Upstream was not fetched.
+- Skill `allstack-spec` (this repository) with the upstream EGM plugin as an optional deeper review. Confidence: rock for the hand-off. EGM writes reports but no receipt, and `egm-resolve` edits the design, so `allstack spec review` runs on the final bytes before `spec approve`. All seven EGM skills set `disable-model-invocation: true`, so a person starts them and the harness cannot. Moves further up after one real design runs through both.
 - `allstack spec review`, a subcommand that starts a read-only host process with only the draft path and repository root. Confidence: rock for the spawn, which reuses the host argv in `hosts.rs`. Water for proving the reviewer has no author context. No verified signal on either host shows the author context. Spike: whether Claude Code exposes agent identity to hooks, and whether Codex does.
 - An approval record bound to the design digest, checked by `spec check`. Confidence: sand. The gap itself is rock. The digest binding is a design choice, recorded in the approval semantics above.
 - Enforcement in claude-beads: it must call `allstack spec check` before it cuts beads, and a claude-guard PreToolUse deny when the approval is missing. Confidence: sand. Not in this repository.
@@ -102,11 +102,11 @@ Each entry names its confidence tier and what would move it up. Tiers are rock (
 ### Distribution
 
 - Skill-sync check covering sha, symlink versus copy, and dangling links. Confidence: rock.
-- Vendor or plugin decision for EGM and the club skills. Confidence: sand. A local directory marketplace works without network access through `extraKnownMarketplaces` in settings.json.
+- EGM ships as the upstream plugin. Vendor or plugin decision for the club skills. Confidence: sand. A local directory marketplace works without network access through `extraKnownMarketplaces` in settings.json.
 
 ### Ordered first bet
 
-The smallest set of rocks that makes the install verifiable end to end. The harness router and the EGM spec gate remain sand and stay outside this set.
+The smallest set of rocks that makes the install verifiable end to end. The harness router remains sand and stays outside this set.
 
 1. Merge origin/main into the decebal checkout and confirm `pr_guard.rs` is present locally.
 2. Add pr-guard to `configs/settings.json` and `hooks/README.md`, and fix the prompt-number matcher.
@@ -127,7 +127,8 @@ Acceptance for this set: `skillsync check` and `allstack doctor` both exit 0 on 
 ## 4. Not checked
 
 - The claude-web-club repository is absent from this machine. Proposal items about it were judged from the proposal text only.
-- EGM and gstack were not fetched. The gstack install was checked by grep only, and no SKILL.md body was read.
+- Of EGM, only the README, `egm-review`, and the privacy statement were read. The no-telemetry statement is upstream's own and was not verified. `/egm:egm-review` was started once in a headless Claude Code session and stopped at its prompt for a target; no full EGM review ran, and no EGM skill was run in Codex.
+- Of gstack, only the autoplan skeleton and the opening sections of plan-ceo-review were read. Autoplan's `sections/*.md` were not read and neither skill was run.
 - Not read: claude-prd and claude-beads bodies (checked by sha only), security-review, systematic-debugging, the installed semantic-isa body, and codex-prd.
 - The fake-host tests do not exercise a real Codex or Claude Code process. The reviewer's read-only sandbox and its absence of author context were not observed on a real host.
 - Claude Code subagent identity in PreToolUse hooks: no documentation was read.

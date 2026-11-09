@@ -15,6 +15,14 @@ Cover the complete job a person completes when the change works, its trigger, in
 
 When the design is an agent or tool-using system, frame it with semantic-isa: classify each environment-altering operation into a typed instruction, state the governance property the kernel enforces, name the typed bindings, and trace taint from untrusted inputs to every sink. Verification clears taint only through a named check.
 
+## Deepen the review with Elephant-Goldfish, when installed
+
+The Elephant-Goldfish plugin runs five review stages with fresh reviewers. Its skills are invoked only by a person: in Claude Code the human types `/egm:egm-review <design path>`, and in Codex the human picks `egm-review` from the skill picker. Ask for it when the design carries sand or water risks. Do not try to start it yourself, and skip it when the plugin is absent.
+
+Review the design at its `docs/plans/` path, so EGM's fixes land in the document being approved. The human resolves findings with `/egm:egm-resolve`. EGM writes its reports, such as `consolidated_review_report.md`, to the working directory. Do not stage them.
+
+EGM produces no receipt and its fixes change the digest, so an EGM review cannot satisfy `spec approve`. Run the next section on the final bytes after EGM is finished.
+
 ## Obtain a fresh-context review
 
 Run the review from the repository root:
@@ -44,4 +52,4 @@ Any later edit invalidates the approval. `spec check` then reports `changed sinc
 
 ## Report
 
-Return the design path, its digest, the review verdict and receipt path, the approval result or the explicit reason none was recorded, and the rejected findings with their evidence.
+Return the design path, its digest, whether an Elephant-Goldfish review ran, the review verdict and receipt path, the approval result or the explicit reason none was recorded, and the rejected findings with their evidence.
