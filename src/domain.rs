@@ -44,6 +44,24 @@ pub enum Stage {
     Verifying,
     Shipping,
     Shipped,
+    Abandoned,
+}
+
+impl Stage {
+    pub fn terminal(self) -> bool {
+        matches!(self, Self::Shipped | Self::Abandoned)
+    }
+}
+
+/// The command that clears a pending operation, for refusals that block on it.
+pub fn clearing_command(operation: &str) -> &'static str {
+    match operation {
+        "commit" | "verification" => {
+            "run checkpoint to keep the workspace edits, verify to retry the commit, or abandon to end the run"
+        }
+        "publication" => "run ship to resume publication",
+        _ => "run recover, or abandon to end the run",
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -196,6 +214,8 @@ impl Run {
             ))
         } else if self.stage == Stage::Shipped {
             Err("run already shipped".into())
+        } else if self.stage == Stage::Abandoned {
+            Err("run abandoned".into())
         } else {
             Ok(())
         }
@@ -204,7 +224,8 @@ impl Run {
     pub fn require_resolved(&self) -> Result<(), String> {
         match &self.pending {
             Some(operation) => Err(format!(
-                "unresolved operation {operation}; reconcile before execution"
+                "unresolved operation {operation}; {}",
+                clearing_command(operation)
             )),
             None => Ok(()),
         }
@@ -238,6 +259,7 @@ pub fn validate_transition(previous: Option<&Run>, event: &Event) -> Result<(), 
         "task_completed",
         "memory_indexed",
         "shipped",
+        "abandoned",
     ]
     .contains(&event.kind.as_str())
     {
@@ -276,6 +298,10 @@ pub fn validate_transition(previous: Option<&Run>, event: &Event) -> Result<(), 
                     | (Stage::Verifying, Stage::Building)
                     | (Stage::Verifying, Stage::Shipping)
                     | (Stage::Shipping, Stage::Shipped)
+                    | (
+                        Stage::Planning | Stage::Building | Stage::Verifying,
+                        Stage::Abandoned
+                    )
             );
             if !same && !allowed {
                 return Err("invalid stage transition".into());
@@ -294,7 +320,7 @@ pub fn validate_transition(previous: Option<&Run>, event: &Event) -> Result<(), 
             {
                 return Err("ownership changed without a bound handoff".into());
             }
-            if old.stage == Stage::Shipped {
+            if old.stage.terminal() {
                 return Err("terminal run cannot change".into());
             }
             if matches!(event.run.stage, Stage::Shipping | Stage::Shipped)

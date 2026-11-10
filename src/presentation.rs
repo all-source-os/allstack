@@ -6,7 +6,7 @@ use crate::{
     domain::Host,
     infrastructure::{bootstrap, catalog, git, process, runtime::Runtime, skills},
 };
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use serde_json::{Value, json};
 use std::path::PathBuf;
@@ -116,6 +116,12 @@ pub enum Action {
         epoch: u64,
     },
     Recover {
+        run: String,
+        #[arg(long)]
+        epoch: u64,
+    },
+    /// End a run that will not ship: checkpoint its edits, release its task, remove its worktrees.
+    Abandon {
         run: String,
         #[arg(long)]
         epoch: u64,
@@ -318,6 +324,7 @@ async fn dispatch(p: &Runtime, action: Action) -> Result<Value> {
         Action::Handoff { run, epoch, to } => application::handoff(p, &run, epoch, to).await?,
         Action::Checkpoint { run, epoch } => application::checkpoint(p, &run, epoch).await?,
         Action::Recover { run, epoch } => application::recover(p, &run, epoch).await?,
+        Action::Abandon { run, epoch } => application::abandon(p, &run, epoch).await?,
         Action::Verify {
             run,
             epoch,
@@ -341,10 +348,7 @@ async fn dispatch(p: &Runtime, action: Action) -> Result<Value> {
         Action::Resume { run, epoch } => {
             let run = p.load(&run).await?;
             run.check_epoch(epoch).map_err(anyhow::Error::msg)?;
-            ensure!(
-                run.pending.is_none(),
-                "run has unresolved operation; inspect and recover before executing"
-            );
+            run.require_resolved().map_err(anyhow::Error::msg)?;
             p.claim_readback(&run)?;
             let request = String::from_utf8(p.object(&run.request)?)?;
             let plan = run

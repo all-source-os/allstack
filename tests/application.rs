@@ -100,6 +100,10 @@ impl Platform for Fake {
         );
         Ok(())
     }
+    fn release_task(&self, _: &Run) -> Result<()> {
+        self.calls.borrow_mut().push("release".into());
+        Ok(())
+    }
     fn recall(&self, _: &str) -> Value {
         json!({"authority":"context-only"})
     }
@@ -384,6 +388,60 @@ async fn failed_commit_can_accept_explicit_checkpoint_repair() {
         .await
         .unwrap();
     assert!(p.state.borrow().verification.is_some());
+}
+
+#[tokio::test]
+async fn stranded_commit_names_its_exits_and_can_be_abandoned() {
+    let p = Fake::new();
+    let run = build_flow(&p).await;
+    p.state.borrow_mut().pending = Some("commit".into());
+    for refusal in [
+        application::handoff(&p, &run.id, 3, Host::ClaudeCode)
+            .await
+            .unwrap_err(),
+        application::recover(&p, &run.id, 3).await.unwrap_err(),
+    ] {
+        let text = refusal.to_string();
+        assert!(
+            ["checkpoint", "verify", "abandon"]
+                .iter()
+                .all(|c| text.contains(c)),
+            "{text}"
+        );
+    }
+    assert!(application::abandon(&p, &run.id, 2).await.is_err());
+    let abandoned = application::abandon(&p, &run.id, 3).await.unwrap();
+    assert_eq!(abandoned.stage, allstack::domain::Stage::Abandoned);
+    assert!(abandoned.pending.is_none());
+    assert!(application::build(&p, &run.id, 3).await.is_err());
+    application::abandon(&p, &run.id, 3).await.unwrap();
+    let calls = p.calls.borrow();
+    let count = |kind: &str| calls.iter().filter(|c| *c == kind).count();
+    assert_eq!(count("abandoned"), 1);
+    assert_eq!(count("release"), 2);
+    assert_eq!(count("cleanup"), 2);
+}
+
+#[tokio::test]
+async fn abandon_is_refused_once_publication_starts() {
+    let p = Fake::new();
+    let run = build_flow(&p).await;
+    application::verify(&p, &run.id, 3, "feat(example): accepted change")
+        .await
+        .unwrap();
+    p.fail_completion.set(true);
+    assert!(
+        application::ship(&p, &run.id, 3, "feat(example): accepted change")
+            .await
+            .is_err()
+    );
+    let refusal = application::abandon(&p, &run.id, 3).await.unwrap_err();
+    assert!(refusal.to_string().contains("ship"), "{refusal}");
+    application::ship(&p, &run.id, 3, "feat(example): accepted change")
+        .await
+        .unwrap();
+    assert!(application::abandon(&p, &run.id, 3).await.is_err());
+    assert!(!p.calls.borrow().iter().any(|c| c == "release"));
 }
 
 #[tokio::test]

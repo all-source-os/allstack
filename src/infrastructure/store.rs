@@ -111,7 +111,7 @@ impl Store {
         let mut active = Vec::new();
         for id in ids {
             let run = self.load(&id).await?;
-            if run.stage != crate::domain::Stage::Shipped {
+            if !run.stage.terminal() {
                 active.push(run);
             }
         }

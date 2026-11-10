@@ -119,8 +119,12 @@ Inspect `status` and `history` before retrying a failed command. A pending opera
 | Host planning or building | Inspect the active worktree and private process evidence, then `recover`; recovery checkpoints current edits without replaying the uncertain host call |
 | Handoff | `recover` completes the recorded transfer and reads back Chronis ownership |
 | Plan recorded with `memory_pending` | `recover` retries Prime indexing without invoking the planning host again |
-| Commit or verification | Repeat `verify` with the current epoch and authorized commit message; it reconciles the candidate and reruns final gates |
+| Commit or verification | Repeat `verify` with the current epoch and authorized commit message; it reconciles the candidate and reruns final gates. Or `checkpoint` to keep the workspace edits and clear the commit |
 | Publication or later task/memory update | Repeat `ship`; destination state determines remaining work |
+
+A refusal caused by a pending operation names the command that clears it.
+
+`abandon <run> --epoch <epoch>` ends a run that will not ship, with any operation except publication pending. It checkpoints the active worktree so its edits stay in the artifact store, records the terminal `abandoned` event, releases the Chronis task when this run holds the claim, and removes the run's worktrees under the same unexpected-edit check as `ship`. Commits already made in the original checkout stay. Once `ship` has started, `abandon` is refused; finish with `ship`. Repeating `abandon` with the same epoch retries the release and cleanup.
 
 After recovery of an uncertain planning call, planning remains necessary unless an accepted plan was recorded. Inspect preserved edits before deliberately invoking `plan` again. A command that failed after recording its result may already have advanced state; always read the destination state first.
 

@@ -25,6 +25,7 @@ pub trait Platform {
     fn claim(&self, run: &Run, previous: Option<&Run>) -> Result<()>;
     fn claim_readback(&self, run: &Run) -> Result<()>;
     fn complete_task(&self, run: &Run) -> Result<()>;
+    fn release_task(&self, run: &Run) -> Result<()>;
     fn recall(&self, query: &str) -> Value;
     async fn remember(&self, run: &Run, phase: &str, source: &str, summary: &str) -> Result<()>;
     fn invoke(&self, run: &Run, prompt: &str, planning: bool) -> Result<String>;
