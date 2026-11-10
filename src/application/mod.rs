@@ -189,11 +189,36 @@ pub async fn recover(p: &impl Platform, id: &str, epoch: u64) -> Result<Run> {
             return Ok(run);
         }
         Some(other) => {
-            anyhow::bail!("operation {other} requires its destination-specific resume command")
+            anyhow::bail!(
+                "recover cannot resolve operation {other}; {}",
+                crate::domain::clearing_command(other)
+            )
         }
     }
     run.pending = None;
     p.save(&mut run, "reconciled").await?;
+    Ok(run)
+}
+
+/// Ends a run that will not ship. Edits are checkpointed before cleanup so they stay
+/// recoverable from the artifact store; commits already in the checkout are left alone.
+pub async fn abandon(p: &impl Platform, id: &str, epoch: u64) -> Result<Run> {
+    let mut run = p.load(id).await?;
+    ensure!(run.epoch == epoch, "stale host epoch");
+    if run.stage != Stage::Abandoned {
+        run.check_epoch(epoch).map_err(anyhow::Error::msg)?;
+        ensure!(
+            run.stage != Stage::Shipping,
+            "publication has started; resume it with ship"
+        );
+        run.checkpoint = p.checkpoint(&run)?;
+        run.stage = Stage::Abandoned;
+        run.pending = None;
+        run.transfer = None;
+        p.save(&mut run, "abandoned").await?;
+    }
+    p.release_task(&run)?;
+    p.cleanup(&run).await?;
     Ok(run)
 }
 

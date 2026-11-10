@@ -215,6 +215,9 @@ impl Platform for Runtime {
     fn complete_task(&self, run: &Run) -> Result<()> {
         self.tasks().complete(run)
     }
+    fn release_task(&self, run: &Run) -> Result<()> {
+        self.tasks().release(run)
+    }
     fn recall(&self, query: &str) -> Value {
         self.memory
             .as_ref()

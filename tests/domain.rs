@@ -70,6 +70,37 @@ fn cannot_skip_verification_or_invent_delivery() {
 }
 
 #[test]
+fn only_an_unpublished_run_can_be_abandoned_and_abandonment_is_terminal() {
+    let event = |old: &allstack::domain::Run, stage: Stage, kind: &str| {
+        let mut run = old.clone();
+        run.revision += 1;
+        run.stage = stage;
+        Event {
+            schema: 1,
+            operation: kind.into(),
+            previous: "hash".into(),
+            kind: kind.into(),
+            run,
+        }
+    };
+    let mut old = common::run();
+    old.revision = 1;
+    for stage in [Stage::Planning, Stage::Building, Stage::Verifying] {
+        old.stage = stage;
+        validate_transition(Some(&old), &event(&old, Stage::Abandoned, "abandoned")).unwrap();
+    }
+    old.stage = Stage::Shipping;
+    assert!(validate_transition(Some(&old), &event(&old, Stage::Abandoned, "abandoned")).is_err());
+    old.stage = Stage::Abandoned;
+    assert!(validate_transition(Some(&old), &event(&old, Stage::Building, "built")).is_err());
+    assert!(
+        old.check_epoch(old.epoch)
+            .unwrap_err()
+            .contains("abandoned")
+    );
+}
+
+#[test]
 fn policy_requires_execution_evidence_and_bounded_commands() {
     let mut p: Policy = toml::from_str(
         "command_seconds=301\n[[gates]]\nname='test'\nargv=['cargo','test']\ntest=true\n",

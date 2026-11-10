@@ -206,6 +206,30 @@ impl Tasks<'_> {
         );
         Ok(())
     }
+    /// Releases only a claim this run holds, under any of its epochs; another claimant keeps theirs.
+    pub fn release(&self, run: &Run) -> Result<()> {
+        let Some(id) = run.task.as_deref() else {
+            return Ok(());
+        };
+        let actual = self.show(id)?;
+        let owner = actual
+            .lines()
+            .find_map(|s| s.strip_prefix("claimed_by:"))
+            .unwrap_or("");
+        if owner.starts_with(&format!("allstack:{}:", run.id))
+            && actual.lines().any(|s| s == "status:in-progress")
+        {
+            self.call(
+                &["release", id, "--reason", "Allstack run abandoned"],
+                Some(owner),
+            )?;
+            ensure!(
+                !self.show(id)?.lines().any(|s| s == "status:in-progress"),
+                "task release unconfirmed"
+            );
+        }
+        Ok(())
+    }
     pub fn previous_actor(run: &Run) -> String {
         Self::actor(run)
     }
