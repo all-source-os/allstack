@@ -6,6 +6,8 @@
 
 ## Design
 
+- [2026-11-10: Interface review ritual](plans/2026-11-10-interface-review-ritual.md) — portable method, evidence and gate contract, and Ready Play Days pilot status.
+
 - [2026-10-28: Native runtime evidence and Prime control values](plans/2026-10-28-native-runtime-evidence-design.md) — installed-runtime identity, final artifact qualification, archived memory recovery and the next real AllSource delivery.
 
 - [2026-10-27: Native evidence checkpoints and Chronis qualification](plans/2026-10-27-native-evidence-and-chronis-design.md) — hosted-proof lessons in existing skills, preserved receipt streams, and real CLI integrity acceptance across Codex and Claude.

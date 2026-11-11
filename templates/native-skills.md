@@ -8,6 +8,8 @@ Invoke skills directly in your coding host. Codex accepts `$allstack-shape` and 
 | `allstack-plan` | Plan architecture, failure behavior, compatibility, and acceptance. |
 | `allstack-review` | Inspect an existing branch, diff, or PR for evidenced defects. |
 | `allstack-qa` | Exercise the real UI, API, CLI, or job using available tools. |
+| `allstack-design` | Review interfaces page by page and retain decisions, evidence, and contribution gates. |
+| `allstack-ui-handoff` | Delegate interface defects with reproduction steps and verification boundaries. |
 | `allstack-ship` | Verify and publish an authorized change through managed delivery. |
 | `allstack-recall` | Recover relevant decisions and inspect their sources. |
 | `allstack-handoff` | Explicitly continue an active delivery in another coding host. |
@@ -19,6 +21,8 @@ Invoke skills directly in your coding host. Codex accepts `$allstack-shape` and 
 Install just this interface with `allstack init --skills-only --check`, then `allstack init --skills-only`. No Rust project, Chronis executable, task, delivery run, or Prime store is needed for installation or independent shaping, planning, review, and QA. Existing managed installation also includes these skills. Conflicting files are preserved and reported before writes. Review initialized files before committing them.
 
 `allstack skills` lists bundled methods without opening stores. `allstack skills review` returns the shared instructions. Native skills use the host's existing tools and permissions; unavailable browser or runtime capabilities remain unverified. A skill is guidance, not a sandbox or permission grant.
+
+For a planned UI refinement, ask for `ritual` or `ritual-full` together with `allstack-design`. The ritual routes the delivery and owns its gates; `allstack-design` contributes the page review, decisions and evidence to the same artifacts. The separate ritual skills and their dependencies must be available in the chosen host; Allstack does not install them.
 
 For CLI/runtime evidence, `allstack check --expect-exit 4 --seconds 120 -- /absolute/program arguments` records expected and observed exit, source checkout, executable identity, and separate stdout/stderr under ignored `.allstack/checks/`. Omit `--expect-exit` for zero. `--input prompt.txt` supplies up to 128 KiB of UTF-8 stdin, including native host prompts. The 2..270 second deadline covers metadata and execution; all children remain supervised. A matching expected negative exit succeeds. Failures retain a receipt and return nonzero. Raw stream paths and digests preserve evidence even when a host combines channels. This command creates no delivery run, Chronis task, or Prime store. Rebuild the application from intended sources before trusting its digest as candidate evidence.
 

@@ -32,6 +32,8 @@ Then invoke a skill by name. Codex accepts `$allstack-plan`; Claude Code accepts
 | `allstack-plan` | Resolve architecture, failure behavior, compatibility, and acceptance. |
 | `allstack-review` | Find evidenced defects in an existing branch, diff, or PR. |
 | `allstack-qa` | Exercise the actual UI, API, CLI, or job using available tools. |
+| `allstack-design` | Review and refine interfaces page by page, preserving decisions and contribution gates. |
+| `allstack-ui-handoff` | Delegate interface fixes with reproducible scenarios and clear ownership. |
 | `allstack-ship` | Verify and publish the authorized change through managed delivery. |
 | `allstack-recall` | Recover relevant project knowledge and inspect its sources. |
 | `allstack-handoff` | Explicitly continue an active delivery in another host. |
@@ -39,6 +41,8 @@ Then invoke a skill by name. Codex accepts `$allstack-plan`; Claude Code accepts
 | `allstack-spec` | Draft a design, obtain a fresh-context review, and record a digest-bound approval. |
 | `allstack-investigate` | Diagnose a reported defect from evidence and produce a repair plan. |
 | `allstack-reflect` | Write a retrospective and flag approved designs whose code moved since approval. |
+
+For planned UI work, invoke `ritual` or `ritual-full` alongside `allstack-design`; the ritual supplies stage routing and approval, while the design method supplies UI evidence and checks. Install the separate ritual skills in the chosen host first. See the [ritual workflow](https://github.com/decebal/decebal-claude-skills/pull/96).
 
 Skills-only setup needs no Rust project, Chronis executable, task, or delivery run. Independent shaping, planning, review, and QA use the native host's tools and permissions. Shared original methods live in [skills/](skills); Rust packages them for both hosts with capability overlays. `allstack skills` inspects the bundled interface without opening stores.
 
