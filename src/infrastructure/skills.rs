@@ -13,6 +13,14 @@ const METHODS: &[(&str, &str)] = &[
         include_str!("../../skills/allstack-review/SKILL.md"),
     ),
     ("qa", include_str!("../../skills/allstack-qa/SKILL.md")),
+    (
+        "design",
+        include_str!("../../skills/allstack-design/SKILL.md"),
+    ),
+    (
+        "ui-handoff",
+        include_str!("../../skills/allstack-ui-handoff/SKILL.md"),
+    ),
     ("ship", include_str!("../../skills/allstack-ship/SKILL.md")),
     (
         "recall",

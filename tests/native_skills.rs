@@ -48,6 +48,8 @@ fn installs_native_hosts_without_project_profile_or_stores_and_preserves_conflic
             "plan",
             "review",
             "qa",
+            "design",
+            "ui-handoff",
             "ship",
             "recall",
             "handoff",
@@ -163,7 +165,7 @@ async fn empty_recall_and_discovery_leave_repository_untouched() {
             .as_array()
             .unwrap()
             .len(),
-        11
+        13
     );
     let dir = repository();
     assert_eq!(
@@ -171,7 +173,7 @@ async fn empty_recall_and_discovery_leave_repository_untouched() {
             .as_array()
             .unwrap()
             .len(),
-        11
+        13
     );
     assert!(skills::inspect(Some("invented")).is_err());
     assert_eq!(

@@ -6,6 +6,12 @@
 
 ## Design
 
+- [2026-11-10: Interface review ritual](plans/2026-11-10-interface-review-ritual.md) — portable method, evidence and gate contract, and Ready Play Days pilot status.
+- [2026-11-12: UI refinement concepts brief](plans/2026-11-12-ui-refinement-brief.md) — review findings, pilot limits, and proposed acceptance boundaries.
+- [2026-11-12: UI refinement design](plans/2026-11-12-ui-refinement-design.md) — proposed evidence, coverage, adapter, gate, and Semantic ISA contract.
+- [2026-11-12: UI refinement design review](plans/2026-11-12-ui-refinement-design-review.md) and [ISA review](plans/2026-11-12-ui-refinement-isa-review.md) — independent findings against the recorded design digest.
+- [2026-11-12: UI refinement design review, second pass](plans/2026-11-12-ui-refinement-design-review-v2.md) and [ISA review, second pass](plans/2026-11-12-ui-refinement-isa-review-v2.md) — findings against the revised design digest.
+
 - [2026-10-28: Native runtime evidence and Prime control values](plans/2026-10-28-native-runtime-evidence-design.md) — installed-runtime identity, final artifact qualification, archived memory recovery and the next real AllSource delivery.
 
 - [2026-10-27: Native evidence checkpoints and Chronis qualification](plans/2026-10-27-native-evidence-and-chronis-design.md) — hosted-proof lessons in existing skills, preserved receipt streams, and real CLI integrity acceptance across Codex and Claude.
